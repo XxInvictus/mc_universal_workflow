@@ -111,7 +111,6 @@ jobs:
       project-root: .
       gradle-args: build
       cache-mc: github
-      fabric-api-version: none
 ```
 
 ## Optional `dependencies.yml`

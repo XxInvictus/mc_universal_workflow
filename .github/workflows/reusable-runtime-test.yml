@@ -171,6 +171,42 @@ jobs:
           escaped="$(printf '%s' "$artifact_file" | sed -e 's/[.[\^$*+?(){|]/\\&/g')"
           echo "ARTIFACT_REGEX=^${escaped}$" >> "$GITHUB_ENV"
 
+      - name: Determine Fabric API source
+        id: fabric_api
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          requested="${{ inputs.fabric-api-version }}"
+          loader="${{ matrix.loader }}"
+          project_root="${{ inputs.project-root }}"
+          deps_path="${project_root%/}/dependencies.yml"
+
+          effective="$requested"
+
+          # Only relevant for Fabric loader.
+          if [[ "$loader" != "fabric" ]]; then
+            effective="none"
+          fi
+
+          # Default/empty means disabled.
+          if [[ -z "$effective" || "$effective" == "none" ]]; then
+            effective="none"
+          fi
+
+          # If dependencies.yml already includes Fabric API, prefer it and disable
+          # the legacy mc-runtime-test fabric-api downloader to avoid duplicates.
+          if [[ "$effective" != "none" && -f "$deps_path" ]]; then
+            runtime_json="$(yq eval -o=json '.dependencies.runtime // []' "$deps_path")"
+            has_fabric_api="$(echo "$runtime_json" | jq -r 'any(.[]?; (.name == "fabric-api") or (.mod_id == "fabric-api") or (.identifiers.modrinth_id == "P7dR8mSH"))')"
+            if [[ "$has_fabric_api" == "true" ]]; then
+              echo "dependencies.yml includes Fabric API; ignoring fabric-api-version input to avoid duplicate downloads" >&2
+              effective="none"
+            fi
+          fi
+
+          echo "fabric_api_version=${effective}" >> "$GITHUB_OUTPUT"
+
       - name: Run runtime test
         uses: XxInvictus/mc_universal_workflow/.github/actions/run-modloader-test@main
         with:
@@ -180,7 +216,7 @@ jobs:
           artifact-regex: ${{ env.ARTIFACT_REGEX }}
           java-version: ${{ needs.detect.outputs.java_version }}
           cache-mc: ${{ inputs.cache-mc }}
-          fabric-api-version: ${{ inputs.fabric-api-version }}
+          fabric-api-version: ${{ steps.fabric_api.outputs.fabric_api_version }}
           # Even though matrix jobs are isolated, keeping cleanup available
           # matches the design requirement for multi-loader safety.
           needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}
