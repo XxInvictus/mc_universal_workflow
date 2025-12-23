@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: build
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
 
 permissions:
   contents: read
@@ -25,7 +30,7 @@ permissions:
 jobs:
   release:
     name: Build and upload artifacts
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

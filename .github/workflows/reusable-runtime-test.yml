@@ -28,6 +28,11 @@ on:
         required: false
         type: string
         default: none
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
 
 permissions:
   contents: read
@@ -35,7 +40,7 @@ permissions:
 jobs:
   detect:
     name: Detect
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     outputs:
       minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
       java_version: ${{ steps.detect.outputs.java_version }}
@@ -88,7 +93,7 @@ jobs:
 
   runtime-test:
     name: Runtime test (${{ matrix.loader }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     needs: detect
     env:
       ARTIFACT_REGEX: ''

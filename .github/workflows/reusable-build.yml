@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: build
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
     outputs:
       loader_multi:
         description: Whether project declares multi-loader
@@ -44,7 +49,7 @@ permissions:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runs-on }}
     outputs:
       loader_multi: ${{ steps.detect.outputs.loader_multi }}
       active_loaders: ${{ steps.detect.outputs.active_loaders }}
