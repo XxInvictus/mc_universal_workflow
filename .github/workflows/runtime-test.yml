@@ -1,6 +1,9 @@
 name: 1.20.1 - Forge - Runtime Test
 on:
-  workflow_dispatch:
+  workflow_run:
+    workflows: ["1.20.1 - Forge - Build", "1.20.1 - Forge - Test"]
+    types:
+      - completed
 
 jobs:
   runtime-test:
