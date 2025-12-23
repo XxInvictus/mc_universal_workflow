@@ -2,7 +2,7 @@
 # validate-mappings.sh
 # Heuristically detects mapping type of the built artifact and enforces
 # loader expectations:
-# - Forge: SRG
+# - Forge: SRG or Mojmap (Forge toolchains vary)
 # - NeoForge: Mojmap
 # - Fabric: Intermediary
 #
@@ -25,7 +25,7 @@ Outputs (key=value):
   loader_type
   artifact_path
   mapping_type (srg|mojmap|intermediary|mixed|unknown)
-  expected_mapping
+  expected_mapping (single value or 'a|b')
   validation_status (pass|fail)
 EOF
 }
@@ -206,14 +206,24 @@ else
 fi
 
 expected_mapping=""
+expected_mapping_regex=""
 case "$loader_type" in
-  forge) expected_mapping="srg" ;;
-  neoforge) expected_mapping="mojmap" ;;
-  fabric) expected_mapping="intermediary" ;;
+  forge)
+    expected_mapping="srg|mojmap"
+    expected_mapping_regex='^(srg|mojmap)$'
+    ;;
+  neoforge)
+    expected_mapping="mojmap"
+    expected_mapping_regex='^mojmap$'
+    ;;
+  fabric)
+    expected_mapping="intermediary"
+    expected_mapping_regex='^intermediary$'
+    ;;
 esac
 
 validation_status="pass"
-if [[ "$mapping_type" != "$expected_mapping" ]]; then
+if ! [[ "$mapping_type" =~ $expected_mapping_regex ]]; then
   validation_status="fail"
 fi
 

@@ -134,7 +134,7 @@ jobs:
           version="0.1.0"
           EOF
 
-          # Add SRG marker strings so validate-mappings detects Forge expectations.
+          # Add SRG marker strings so validate-mappings detects Forge as SRG.
           for i in $(seq 1 50); do
             echo "func_1234_a" >> fixture/markers/srg.txt
             echo "field_5678_b" >> fixture/markers/srg.txt
@@ -185,7 +185,7 @@ jobs:
           set -euo pipefail
           [[ "${{ steps.val_art.outputs.validation_status }}" == "pass" ]]
           [[ "${{ steps.val_map.outputs.validation_status }}" == "pass" ]]
-          [[ "${{ steps.val_map.outputs.mapping_type }}" == "srg" ]]
+          [[ "${{ steps.val_map.outputs.mapping_type }}" == "srg" || "${{ steps.val_map.outputs.mapping_type }}" == "mojmap" ]]
 
       - name: Create multi-loader fixture project
         shell: bash

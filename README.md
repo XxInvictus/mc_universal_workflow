@@ -151,7 +151,7 @@ Notes:
 - Canonical property presence + loader gating (migration-only).
 - Enforced artifact paths.
 - Artifact sanity (valid jar + required loader metadata file).
-- Mapping heuristics (Forge=SRG, NeoForge=Mojmap, Fabric=Intermediary).
+- Mapping heuristics (Forge=SRG or Mojmap, NeoForge=Mojmap, Fabric=Intermediary).
 
 ## Optional migration helpers (out-of-band)
 

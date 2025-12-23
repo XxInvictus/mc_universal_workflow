@@ -153,7 +153,7 @@ bash scripts/health-check.sh --project-root .
 ### “mapping mismatch”
 
 - This repo uses heuristic detection:
-  - Forge expects SRG
+  - Forge accepts SRG or Mojmap (toolchain-dependent)
   - NeoForge expects Mojmap
   - Fabric expects Intermediary
 

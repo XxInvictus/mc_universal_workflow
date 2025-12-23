@@ -85,6 +85,27 @@ jobs:
         with:
           project-root: ${{ inputs.project-root }}
 
+      - name: Ensure strings (binutils) is available
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v strings >/dev/null 2>&1; then
+            exit 0
+          fi
+          echo "strings not found; attempting to install binutils" >&2
+          if ! command -v apt-get >/dev/null 2>&1; then
+            echo "ERROR: strings not found and apt-get is unavailable. Install binutils (strings) on the runner." >&2
+            exit 1
+          fi
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then
+            SUDO="sudo"
+          fi
+          $SUDO apt-get update -y
+          $SUDO apt-get install -y binutils
+          command -v strings >/dev/null 2>&1 || { echo "ERROR: strings still not available after attempting binutils install" >&2; exit 1; }
+
       - name: Validate artifacts and mappings (multi-loader)
         if: steps.detect.outputs.loader_multi == 'true'
         shell: bash

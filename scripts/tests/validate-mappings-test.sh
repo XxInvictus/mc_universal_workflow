@@ -79,7 +79,7 @@ make_jar_with_markers() {
   )
 }
 
-# Forge expects SRG
+# Forge accepts SRG or Mojmap (Forge toolchains vary)
 mkdir -p "$workdir/forge"
 cat > "$workdir/forge/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
@@ -98,6 +98,25 @@ done
 make_jar_with_markers "$workdir/forge" "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "${srg_markers[@]}"
 
 assert_ok "forge srg validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge"
+
+# Forge should also validate if jar looks Mojmap
+mkdir -p "$workdir/forge-moj"
+cat > "$workdir/forge-moj/gradle.properties" <<'EOF'
+minecraft_version=1.21.1
+mod_id=examplemod
+mod_version=0.1.0
+java_version=21
+loader_multi=false
+loader_type=forge
+EOF
+
+moj_markers_forge=()
+for _ in $(seq 1 25); do
+  moj_markers_forge+=("net/minecraft/world/entity/Entity" "net/minecraft/client/Minecraft")
+done
+make_jar_with_markers "$workdir/forge-moj" "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "${moj_markers_forge[@]}"
+
+assert_ok "forge mojmap validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge-moj"
 
 # Fabric expects intermediary
 mkdir -p "$workdir/fabric"
@@ -150,6 +169,6 @@ EOF
 
 make_jar_with_markers "$workdir/forge-bad" "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "${inter_markers[@]}"
 
-assert_fail "forge expects srg" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge-bad"
+assert_fail "forge rejects intermediary" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge-bad"
 
 echo "OK"
