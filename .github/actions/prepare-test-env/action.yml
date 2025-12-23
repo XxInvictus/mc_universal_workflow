@@ -29,10 +29,10 @@ inputs:
 
 outputs:
   test_dir:
-    description: Test directory used by headlesshq/mc-runtime-test (fixed: run)
+    description: 'Test directory used by headlesshq/mc-runtime-test (fixed: run)'
     value: ${{ steps.prepare.outputs.test_dir }}
   mod_dir:
-    description: Mods directory used by headlesshq/mc-runtime-test (fixed: run/mods)
+    description: 'Mods directory used by headlesshq/mc-runtime-test (fixed: run/mods)'
     value: ${{ steps.prepare.outputs.mod_dir }}
   loader_type:
     description: Loader type selected for preparation
