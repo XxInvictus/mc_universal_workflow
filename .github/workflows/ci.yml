@@ -140,7 +140,7 @@ jobs:
             echo "field_5678_b" >> fixture/markers/srg.txt
           done
 
-          (cd fixture && zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt)
+          (cd fixture && zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt)
 
       - name: Run detect-project action
         id: detect
@@ -165,7 +165,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${{ steps.resolve_single.outputs.artifact_path }}" == "build/libs/examplemod-1.21.1-0.1.0.jar" ]]
+          [[ "${{ steps.resolve_single.outputs.artifact_path }}" == "build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]]
 
       - name: Run validate-artifacts action (single-loader)
         id: val_art
@@ -321,4 +321,4 @@ jobs:
           [[ "${{ steps.prep.outputs.mod_dir }}" == "run/mods" ]]
           [[ "${{ steps.prep.outputs.loader_type }}" == "forge" ]]
           [[ "${{ steps.prep.outputs.minecraft_version }}" == "1.21.1" ]]
-          [[ -f "run/mods/examplemod-1.21.1-0.1.0.jar" ]]
+          [[ -f "run/mods/examplemod-forge-1.21.1-0.1.0.jar" ]]
