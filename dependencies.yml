@@ -1,0 +1,25 @@
+version: "1.0"
+settings:
+  auto_resolve_latest: false
+
+dependencies:
+  runtime:
+    - name: fabric-api
+      loaders: [fabric]
+      minecraft: ["1.20.1"]
+      identifiers:
+        modrinth_id: P7dR8mSH
+      version:
+        default: "0.92.1+1.20.1"
+      source:
+        type: modrinth
+  # Example: Fabric API for Fabric loader
+  # - name: fabric-api
+  #   loaders: [fabric]
+  #   minecraft: ["1.21.1"]
+  #   identifiers:
+  #     modrinth_id: P7dR8mSH
+  #   version:
+  #     default: "0.100.0+1.21.1"
+  #   source:
+  #     type: modrinth
