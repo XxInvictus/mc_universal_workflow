@@ -95,7 +95,7 @@ srg_markers=()
 for _ in $(seq 1 40); do
   srg_markers+=("func_1234_a" "field_5678_b")
 done
-make_jar_with_markers "$workdir/forge" "build/libs/examplemod-1.21.1-0.1.0.jar" "${srg_markers[@]}"
+make_jar_with_markers "$workdir/forge" "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "${srg_markers[@]}"
 
 assert_ok "forge srg validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge"
 
@@ -114,7 +114,7 @@ inter_markers=()
 for _ in $(seq 1 40); do
   inter_markers+=("class_1234" "method_5678")
 done
-make_jar_with_markers "$workdir/fabric" "build/libs/examplemod-1.21.1-0.1.0.jar" "${inter_markers[@]}"
+make_jar_with_markers "$workdir/fabric" "build/libs/examplemod-fabric-1.21.1-0.1.0.jar" "${inter_markers[@]}"
 
 assert_ok "fabric intermediary validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/fabric"
 
@@ -133,7 +133,7 @@ moj_markers=()
 for _ in $(seq 1 25); do
   moj_markers+=("net/minecraft/world/entity/Entity" "net/minecraft/client/Minecraft")
 done
-make_jar_with_markers "$workdir/neoforge" "build/libs/examplemod-1.21.1-0.1.0.jar" "${moj_markers[@]}"
+make_jar_with_markers "$workdir/neoforge" "build/libs/examplemod-neoforge-1.21.1-0.1.0.jar" "${moj_markers[@]}"
 
 assert_ok "neoforge mojmap validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/neoforge"
 
@@ -148,7 +148,7 @@ loader_multi=false
 loader_type=forge
 EOF
 
-make_jar_with_markers "$workdir/forge-bad" "build/libs/examplemod-1.21.1-0.1.0.jar" "${inter_markers[@]}"
+make_jar_with_markers "$workdir/forge-bad" "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "${inter_markers[@]}"
 
 assert_fail "forge expects srg" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/forge-bad"
 

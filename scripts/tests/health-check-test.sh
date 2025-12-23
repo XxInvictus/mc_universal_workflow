@@ -76,7 +76,7 @@ done
 
 (
   cd "$workdir/forge"
-  zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt
+  zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt
 )
 
 assert_ok "health-check forge passes" bash "$HEALTH_CHECK" --project-root "$workdir/forge"

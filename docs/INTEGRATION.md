@@ -64,7 +64,7 @@ Artifact naming is enforced and derived only from `gradle.properties`.
 Single-loader:
 
 ```text
-build/libs/${mod_id}-${minecraft_version}-${mod_version}.jar
+build/libs/${mod_id}-${loader_type}-${minecraft_version}-${mod_version}.jar
 ```
 
 Multi-loader:

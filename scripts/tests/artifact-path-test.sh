@@ -54,14 +54,14 @@ loader_type=forge
 EOF
 
 out="$(${COMPUTE} --project-root "${tmp_dir}/single")"
-assert_contains "$out" "artifact_path=build/libs/examplemod-1.21.1-0.1.0.jar"
+assert_contains "$out" "artifact_path=build/libs/examplemod-forge-1.21.1-0.1.0.jar"
 
 # validate should fail before artifact exists.
 assert_exit_code 1 "${VALIDATE}" --project-root "${tmp_dir}/single"
 
 # create artifact and validate should pass.
 mkdir -p "${tmp_dir}/single/build/libs"
-: >"${tmp_dir}/single/build/libs/examplemod-1.21.1-0.1.0.jar"
+: >"${tmp_dir}/single/build/libs/examplemod-forge-1.21.1-0.1.0.jar"
 assert_exit_code 0 "${VALIDATE}" --project-root "${tmp_dir}/single"
 
 # Case 2: multi-loader requires --loader.

@@ -51,18 +51,18 @@ java_version=21
 loader_multi=false
 loader_type=forge
 EOF
-: >"${tmp_dir}/single/build/libs/examplemod-1.21.1-0.1.0.jar"
+: >"${tmp_dir}/single/build/libs/examplemod-forge-1.21.1-0.1.0.jar"
 
 pushd "$tmp_dir" >/dev/null
 out1="$(${SCRIPT_UNDER_TEST} --project-root "${tmp_dir}/single")"
 popd >/dev/null
 
 assert_contains "$out1" "loader_type=forge"
-assert_contains "$out1" "artifact_path=build/libs/examplemod-1.21.1-0.1.0.jar"
+assert_contains "$out1" "artifact_path=build/libs/examplemod-forge-1.21.1-0.1.0.jar"
 assert_contains "$out1" "mod_dir=run/mods"
 
 # Should have staged the artifact into ./run/mods relative to PWD ($tmp_dir).
-[[ -f "${tmp_dir}/run/mods/examplemod-1.21.1-0.1.0.jar" ]] || fail "expected staged jar in run/mods"
+[[ -f "${tmp_dir}/run/mods/examplemod-forge-1.21.1-0.1.0.jar" ]] || fail "expected staged jar in run/mods"
 
 # Case 2: multi-loader requires --loader.
 mkdir -p "${tmp_dir}/multi/forge/build.gradle" "${tmp_dir}/multi/fabric/build.gradle"

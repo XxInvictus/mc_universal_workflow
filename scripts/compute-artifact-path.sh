@@ -3,7 +3,7 @@
 # Computes the enforced artifact path based on canonical gradle.properties values.
 #
 # Contract (no custom patterns):
-# - Single-module: build/libs/${mod_id}-${minecraft_version}-${mod_version}.jar
+# - Single-module: build/libs/${mod_id}-${loader}-${minecraft_version}-${mod_version}.jar
 # - Multi-loader:  ${loader}/build/libs/${mod_id}-${loader}-${minecraft_version}-${mod_version}.jar
 #
 # Outputs key=value pairs to stdout suitable for appending to $GITHUB_OUTPUT.
@@ -128,7 +128,7 @@ if [[ "$loader_multi" == "true" ]]; then
   artifact_dir="${loader}/build/libs"
   artifact_path="${artifact_dir}/${artifact_file}"
 else
-  artifact_file="${mod_id}-${minecraft_version}-${mod_version}.jar"
+  artifact_file="${mod_id}-${loader}-${minecraft_version}-${mod_version}.jar"
   artifact_dir="build/libs"
   artifact_path="${artifact_dir}/${artifact_file}"
 fi

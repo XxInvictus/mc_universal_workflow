@@ -66,7 +66,7 @@ EOF
 
 (
   cd "$workdir/forge"
-  zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "META-INF/mods.toml"
+  zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "META-INF/mods.toml"
 )
 
 assert_ok "forge jar validates" bash "$SCRIPT_DIR/validate-artifacts.sh" --project-root "$workdir/forge"
@@ -88,7 +88,7 @@ EOF
 
 (
   cd "$workdir/forge-bad"
-  zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF"
+  zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF"
 )
 
 assert_fail "forge jar missing mods.toml fails" bash "$SCRIPT_DIR/validate-artifacts.sh" --project-root "$workdir/forge-bad"
@@ -119,7 +119,7 @@ EOF
 
 (
   cd "$workdir/neoforge"
-  zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "META-INF/neoforge.mods.toml"
+  zip -q "build/libs/examplemod-neoforge-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "META-INF/neoforge.mods.toml"
 )
 
 assert_ok "neoforge jar validates" bash "$SCRIPT_DIR/validate-artifacts.sh" --project-root "$workdir/neoforge"
@@ -151,7 +151,7 @@ EOF
 
 (
   cd "$workdir/fabric"
-  zip -q "build/libs/examplemod-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "fabric.mod.json"
+  zip -q "build/libs/examplemod-fabric-1.21.1-0.1.0.jar" "META-INF/MANIFEST.MF" "fabric.mod.json"
 )
 
 assert_ok "fabric jar validates" bash "$SCRIPT_DIR/validate-artifacts.sh" --project-root "$workdir/fabric"
