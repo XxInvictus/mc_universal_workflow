@@ -1,5 +1,5 @@
 name: 2. ExampleMod Build/Test - Fabric
-run-name: "2. [1.21.11] - ${{ github.event.head_commit.message }}"
+run-name: "2. [1.21.10] - ${{ github.event.head_commit.message }}"
 on:
   push:
     branches:

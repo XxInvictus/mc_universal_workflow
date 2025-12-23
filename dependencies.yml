@@ -6,11 +6,11 @@ dependencies:
   runtime:
     - name: fabric-api
       loaders: [fabric]
-      minecraft: ["1.21.11"]
+      minecraft: ["1.21.10"]
       identifiers:
         modrinth_id: P7dR8mSH
       version:
-        default: "0.139.4+1.21.11"
+        default: "0.136.0+1.21.10"
       source:
         type: modrinth
   # Example: Fabric API for Fabric loader
