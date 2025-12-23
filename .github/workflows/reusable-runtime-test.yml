@@ -1,0 +1,223 @@
+name: 1. Reusable - Runtime Test
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for mc-runtime-test
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags) to build artifacts before runtime test
+        required: false
+        type: string
+        default: build
+      cache-mc:
+        description: Cache strategy for .minecraft (github|blacksmith|true|false)
+        required: false
+        type: string
+        default: github
+      fabric-api-version:
+        description: Fabric API version to download (or none)
+        required: false
+        type: string
+        default: none
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      java_version: ${{ steps.detect.outputs.java_version }}
+      loader_multi: ${{ steps.detect.outputs.loader_multi }}
+      loaders_json: ${{ steps.loaders.outputs.loaders_json }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect project configuration
+        id: detect
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Compute loaders matrix
+        id: loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          if [[ "$loader_multi" == "true" ]]; then
+            loaders_csv="${{ steps.detect.outputs.active_loaders }}"
+          else
+            loaders_csv="${{ steps.detect.outputs.loader_type }}"
+          fi
+
+          if [[ -z "$loaders_csv" ]]; then
+            echo "ERROR: failed to determine loaders list" >&2
+            exit 1
+          fi
+
+          # Convert comma-separated list to JSON array.
+          loaders_json="["
+          first=true
+          IFS=',' read -r -a loaders <<< "$loaders_csv"
+          for loader in "${loaders[@]}"; do
+            [[ -n "$loader" ]] || continue
+            if [[ "$first" == "true" ]]; then
+              first=false
+            else
+              loaders_json+=","
+            fi
+            loaders_json+="\"${loader}\""
+          done
+          loaders_json+="]"
+
+          echo "loaders_json=$loaders_json" >> "$GITHUB_OUTPUT"
+
+  runtime-test:
+    name: Runtime test (${{ matrix.loader }})
+    runs-on: ${{ inputs.runs-on }}
+    needs: detect
+    env:
+      MODLOADER_REGEX: ''
+    strategy:
+      fail-fast: false
+      matrix:
+        loader: ${{ fromJSON(needs.detect.outputs.loaders_json) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ needs.detect.outputs.java_version }}
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip binutils jq
+
+      - name: Install yq (pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YQ_VERSION="v4.44.3"
+          ARCH="amd64"
+          OS="linux"
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${OS}_${ARCH}" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifact and mappings
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Validate mappings
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Prepare test environment
+        id: env
+        uses: XxInvictus/mc_universal_workflow/.github/actions/prepare-test-env@main
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Compute modloader regex
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.loader }}" in
+            forge) echo 'MODLOADER_REGEX=^.*forge.*$' >> "$GITHUB_ENV" ;;
+            neoforge) echo 'MODLOADER_REGEX=^.*neoforge.*$' >> "$GITHUB_ENV" ;;
+            fabric) echo 'MODLOADER_REGEX=^.*fabric.*$' >> "$GITHUB_ENV" ;;
+            *)
+              echo "ERROR: unsupported loader=${{ matrix.loader }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Determine Fabric API source
+        id: fabric_api
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          requested="${{ inputs.fabric-api-version }}"
+          loader="${{ matrix.loader }}"
+          project_root="${{ inputs.project-root }}"
+          deps_path="${project_root%/}/dependencies.yml"
+
+          effective="$requested"
+
+          # Only relevant for Fabric loader.
+          if [[ "$loader" != "fabric" ]]; then
+            effective="none"
+          fi
+
+          # Default/empty means disabled.
+          if [[ -z "$effective" || "$effective" == "none" ]]; then
+            effective="none"
+          fi
+
+          # If dependencies.yml already includes Fabric API, prefer it and disable
+          # the legacy mc-runtime-test fabric-api downloader to avoid duplicates.
+          if [[ "$effective" != "none" && -f "$deps_path" ]]; then
+            runtime_json="$(yq eval -o=json '.dependencies.runtime // []' "$deps_path")"
+            has_fabric_api="$(echo "$runtime_json" | jq -r 'any(.[]?; (.name == "fabric-api") or (.mod_id == "fabric-api") or (.identifiers.modrinth_id == "P7dR8mSH"))')"
+            if [[ "$has_fabric_api" == "true" ]]; then
+              echo "dependencies.yml includes Fabric API; ignoring fabric-api-version input to avoid duplicate downloads" >&2
+              effective="none"
+            fi
+          fi
+
+          echo "fabric_api_version=${effective}" >> "$GITHUB_OUTPUT"
+
+      - name: Run runtime test
+        uses: XxInvictus/mc_universal_workflow/.github/actions/run-modloader-test@main
+        with:
+          loader-type: ${{ matrix.loader }}
+          minecraft-version: ${{ needs.detect.outputs.minecraft_version }}
+          # mc-runtime-test matches against the modloader jar name.
+          modloader-regex: ${{ env.MODLOADER_REGEX }}
+          java-version: ${{ needs.detect.outputs.java_version }}
+          cache-mc: ${{ inputs.cache-mc }}
+          fabric-api-version: ${{ steps.fabric_api.outputs.fabric_api_version }}
+          needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}

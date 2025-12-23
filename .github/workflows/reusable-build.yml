@@ -1,0 +1,193 @@
+name: 1. Reusable - Build
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for Gradle
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags)
+        required: false
+        type: string
+        default: build
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
+    outputs:
+      loader_multi:
+        description: Whether project declares multi-loader
+        value: ${{ jobs.build.outputs.loader_multi }}
+      active_loaders:
+        description: Active loaders (single or comma-separated)
+        value: ${{ jobs.build.outputs.active_loaders }}
+      minecraft_version:
+        description: Minecraft version
+        value: ${{ jobs.build.outputs.minecraft_version }}
+      mod_id:
+        description: Mod id
+        value: ${{ jobs.build.outputs.mod_id }}
+      mod_version:
+        description: Mod version
+        value: ${{ jobs.build.outputs.mod_version }}
+      artifact_paths:
+        description: Newline-separated artifact paths (relative to project root)
+        value: ${{ jobs.build.outputs.artifact_paths }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      loader_multi: ${{ steps.detect.outputs.loader_multi }}
+      active_loaders: ${{ steps.detect.outputs.active_loaders }}
+      minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      mod_id: ${{ steps.detect.outputs.mod_id }}
+      mod_version: ${{ steps.detect.outputs.mod_version }}
+      artifact_paths: ${{ steps.artifacts.outputs.artifact_paths }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout mc_universal_workflow scripts (sparse)
+        uses: actions/checkout@v4
+        with:
+          repository: XxInvictus/mc_universal_workflow
+          ref: main
+          path: .mc_universal_workflow
+          sparse-checkout: |
+            scripts
+
+      - name: Detect project configuration
+        id: detect
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.detect.outputs.java_version }}
+
+      - name: Validate optional dependencies.yml
+        id: deps
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifacts (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate mappings (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Ensure strings (binutils) is available
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v strings >/dev/null 2>&1; then
+            exit 0
+          fi
+          echo "strings not found; attempting to install binutils" >&2
+          if ! command -v apt-get >/dev/null 2>&1; then
+            echo "ERROR: strings not found and apt-get is unavailable. Install binutils (strings) on the runner." >&2
+            exit 1
+          fi
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then
+            SUDO="sudo"
+          fi
+          $SUDO apt-get update -y
+          $SUDO apt-get install -y binutils
+          command -v strings >/dev/null 2>&1 || { echo "ERROR: strings still not available after attempting binutils install" >&2; exit 1; }
+
+      - name: Validate artifacts and mappings (multi-loader)
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="${{ inputs.project-root }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+          IFS=',' read -r -a loaders <<< "$active_loaders"
+          for loader in "${loaders[@]}"; do
+            echo "Validating loader=$loader"
+            bash ./.mc_universal_workflow/scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
+            bash ./.mc_universal_workflow/scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
+          done
+
+      - name: Resolve enforced artifact paths
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+
+          artifact_paths=""
+
+          if [[ "$loader_multi" == "true" ]]; then
+            IFS=',' read -r -a loaders <<< "$active_loaders"
+            for loader in "${loaders[@]}"; do
+              out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
+              if [[ -z "$out_path" ]]; then
+                echo "ERROR: failed to resolve artifact_path for loader=${loader}" >&2
+                exit 1
+              fi
+              if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+                echo "ERROR: expected artifact missing: ${out_path}" >&2
+                exit 1
+              fi
+              artifact_paths+="${out_path}"$'\n'
+            done
+          else
+            out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
+            if [[ -z "$out_path" ]]; then
+              echo "ERROR: failed to resolve artifact_path" >&2
+              exit 1
+            fi
+            if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+              echo "ERROR: expected artifact missing: ${out_path}" >&2
+              exit 1
+            fi
+            artifact_paths+="${out_path}"$'\n'
+          fi
+
+          {
+            echo 'artifact_paths<<EOF'
+            printf '%s' "$artifact_paths"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
