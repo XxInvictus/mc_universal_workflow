@@ -19,7 +19,7 @@ jobs:
     runs-on: HomeServ
     outputs:
       BUILD_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
-      TEST_ALLOWED: '1.20.1-forge, 1.20.1-fabric'
+      TEST_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
     steps:
       - name: Set up outputs
         run: echo "Outputs prepared."
