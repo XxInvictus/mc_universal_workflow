@@ -1,4 +1,5 @@
-name: 2. 1.20.1 - Forge - ExampleMod Build/Test
+name: 2. ExampleMod Build/Test - Forge
+run-name: "2. [1.20.1] - ${{ github.event.head_commit.message }}"
 on:
   push:
     branches:
