@@ -11,14 +11,18 @@ on:
       - 1.20.1-fabric
       - 1.20.1-multiloader
 
-env:
-  BUILD_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
-  TEST_ALLOWED: '1.20.1-forge'
 
 jobs:
+  prepare-outputs:
+    name: Prepare Outputs
+    runs-on: HomeServ
+    outputs:
+      BUILD_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
+      TEST_ALLOWED: '1.20.1-forge'
   build:
     name: Build Project
-    if: contains(env.BUILD_ALLOWED, github.ref_name)
+    if: contains(needs.prepare-outputs.outputs.BUILD_ALLOWED, github.ref_name)
+    needs: prepare-outputs
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
@@ -27,7 +31,8 @@ jobs:
 
   gradle-test:
     name: Test Project
-    if: contains(env.BUILD_ALLOWED, github.ref_name)
+    if: contains(needs.prepare-outputs.outputs.BUILD_ALLOWED, github.ref_name)
+    needs: prepare-outputs
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
     with:
       project-root: .
@@ -37,7 +42,8 @@ jobs:
 
   runtime-test:
     name: Runtime Test
-    if: contains(env.TEST_ALLOWED, github.ref_name)
+    if: contains(needs.prepare-outputs.outputs.TEST_ALLOWED, github.ref_name)
+    needs: prepare-outputs
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
