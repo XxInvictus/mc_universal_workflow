@@ -5,6 +5,7 @@ on:
 
 jobs:
   build:
+    name: Build Project
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
