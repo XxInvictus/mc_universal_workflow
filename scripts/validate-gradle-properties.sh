@@ -109,6 +109,7 @@ require_prop() {
 minecraft_version="$(require_prop "minecraft_version")"
 mod_id="$(require_prop "mod_id")"
 mod_version="$(require_prop "mod_version")"
+java_version="$(require_prop "java_version")"
 loader_multi="$(require_prop "loader_multi")"
 
 case "$loader_multi" in
@@ -150,5 +151,15 @@ fi
 [[ -n "$minecraft_version" ]] || fail "minecraft_version cannot be empty"
 [[ -n "$mod_id" ]] || fail "mod_id cannot be empty"
 [[ -n "$mod_version" ]] || fail "mod_version cannot be empty"
+[[ -n "$java_version" ]] || fail "java_version cannot be empty"
+
+# Validate java_version is a reasonable integer
+if ! [[ "$java_version" =~ ^[0-9]+$ ]]; then
+  fail "java_version must be a positive integer (got '${java_version}')"
+fi
+
+if [[ "$java_version" -lt 8 || "$java_version" -gt 99 ]]; then
+  fail "java_version must be between 8 and 99 (got '${java_version}')"
+fi
 
 echo "validation_status=pass"

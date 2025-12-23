@@ -7,7 +7,6 @@ jobs:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
-      java-version: '21'
       gradle-args: build
       cache-mc: github
       fabric-api-version: none

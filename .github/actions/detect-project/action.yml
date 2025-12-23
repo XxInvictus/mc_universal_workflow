@@ -32,6 +32,9 @@ outputs:
   mod_version:
     description: Mod version
     value: ${{ steps.detect.outputs.mod_version }}
+  java_version:
+    description: Java version for builds and tests
+    value: ${{ steps.detect.outputs.java_version }}
 
 runs:
   using: composite

@@ -18,6 +18,7 @@ minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
 loader_multi=false
+java_version=21
 ```
 
 Single-loader branches:
@@ -58,7 +59,6 @@ jobs:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
-      java-version: '21'
       gradle-args: build
 ```
 
@@ -75,7 +75,6 @@ jobs:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
     with:
       project-root: .
-      java-version: '21'
       gradle-args: test
 ```
 
@@ -93,7 +92,6 @@ jobs:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-release.yml@main
     with:
       project-root: .
-      java-version: '21'
       gradle-args: build
 ```
 
@@ -111,7 +109,6 @@ jobs:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
-      java-version: '21'
       gradle-args: build
       cache-mc: github
       fabric-api-version: none

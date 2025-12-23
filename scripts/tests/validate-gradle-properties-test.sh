@@ -47,6 +47,7 @@ cat >"${tmp_dir}/valid/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=false
 loader_type=forge
 EOF
@@ -61,6 +62,7 @@ minecraft_version=1.21.1
 minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=false
 loader_type=forge
 EOF
@@ -72,6 +74,7 @@ cat >"${tmp_dir}/bad_key/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
 Mod_ID=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=false
 loader_type=forge
 EOF
@@ -83,6 +86,7 @@ cat >"${tmp_dir}/multi_one/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=true
 active_loaders=forge
 EOF
@@ -94,6 +98,7 @@ cat >"${tmp_dir}/bad_loader/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=false
 loader_type=quilt
 EOF

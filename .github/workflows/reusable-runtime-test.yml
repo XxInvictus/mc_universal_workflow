@@ -38,6 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      java_version: ${{ steps.detect.outputs.java_version }}
       loader_multi: ${{ steps.detect.outputs.loader_multi }}
       loaders_json: ${{ steps.loaders.outputs.loaders_json }}
     steps:
@@ -103,7 +104,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: ${{ inputs.java-version }}
+          java-version: ${{ needs.detect.outputs.java_version }}
 
       - name: Install validation tools
         shell: bash
@@ -172,7 +173,7 @@ jobs:
           minecraft-version: ${{ needs.detect.outputs.minecraft_version }}
           # mc-runtime-test matches against mod jar names in ./run/mods
           artifact-regex: ${{ env.ARTIFACT_REGEX }}
-          java-version: ${{ inputs.java-version }}
+          java-version: ${{ needs.detect.outputs.java_version }}
           cache-mc: ${{ inputs.cache-mc }}
           fabric-api-version: ${{ inputs.fabric-api-version }}
           # Even though matrix jobs are isolated, keeping cleanup available

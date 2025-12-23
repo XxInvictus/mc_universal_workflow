@@ -26,7 +26,7 @@ Options:
 Presets:
   canonical  Emits the canonical contract outputs (via quick-detect.sh):
              project_root, detected_loaders, loader_multi, loader_type, active_loaders,
-             minecraft_version, mod_id, mod_version
+             minecraft_version, mod_id, mod_version, java_version
   all        Emits all keys found in the properties file (simple key=value parsing).
 
 Notes:
@@ -182,6 +182,7 @@ if [[ "$preset" == "canonical" ]]; then
     "minecraft_version"
     "mod_id"
     "mod_version"
+    "java_version"
   )
 
   for k in "${OUT_KEYS[@]}"; do

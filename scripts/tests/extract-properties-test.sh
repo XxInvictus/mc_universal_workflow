@@ -50,6 +50,7 @@ cat >"${tmp_dir}/proj/gradle.properties" <<'EOF'
 minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
+java_version=21
 loader_multi=false
 loader_type=forge
 

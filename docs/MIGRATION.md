@@ -22,6 +22,7 @@ minecraft_version=1.21.1
 mod_id=examplemod
 mod_version=0.1.0
 loader_multi=false
+java_version=21
 ```
 
 Single-loader branches:
