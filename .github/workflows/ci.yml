@@ -117,6 +117,7 @@ jobs:
           mod_version=0.1.0
           loader_multi=false
           loader_type=forge
+          java_version=21
           EOF
 
           mkdir -p fixture/build/libs fixture/META-INF fixture/markers
@@ -199,6 +200,7 @@ jobs:
           mod_version=0.1.0
           loader_multi=true
           active_loaders=forge,fabric
+          java_version=21
           EOF
 
           # Create minimal, valid forge and fabric jars at the enforced locations.
@@ -290,6 +292,7 @@ jobs:
           mod_version=0.1.0
           loader_multi=false
           loader_type=forge
+          java_version=21
           EOF
 
       - name: Run validate-dependencies action (missing file)
