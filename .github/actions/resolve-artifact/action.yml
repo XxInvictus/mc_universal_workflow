@@ -1,0 +1,37 @@
+name: Resolve artifact path
+description: Computes the enforced artifact path from canonical gradle.properties values.
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+  loader:
+    description: Loader to compute artifact for (required when loader_multi=true)
+    required: false
+    default: ''
+
+outputs:
+  artifact_path:
+    description: Computed artifact path (relative to project root)
+    value: ${{ steps.resolve.outputs.artifact_path }}
+  artifact_file:
+    description: Artifact filename
+    value: ${{ steps.resolve.outputs.artifact_file }}
+  artifact_dir:
+    description: Artifact directory
+    value: ${{ steps.resolve.outputs.artifact_dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=("--project-root" "${{ inputs.project-root }}")
+        if [[ -n "${{ inputs.loader }}" ]]; then
+          args+=("--loader" "${{ inputs.loader }}")
+        fi
+        bash "${{ github.action_path }}/../../../scripts/compute-artifact-path.sh" "${args[@]}" >> "$GITHUB_OUTPUT"

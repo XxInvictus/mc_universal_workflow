@@ -1,0 +1,50 @@
+name: Validate mappings
+description: Detects mapping type of the built artifact and enforces loader expectations.
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+  loader:
+    description: Loader to validate for (required when loader_multi=true)
+    required: false
+    default: ''
+  artifact-path:
+    description: Artifact path relative to project root (optional)
+    required: false
+    default: ''
+
+outputs:
+  loader_type:
+    description: Effective loader type validated
+    value: ${{ steps.run.outputs.loader_type }}
+  artifact_path:
+    description: Artifact path validated (relative to project root)
+    value: ${{ steps.run.outputs.artifact_path }}
+  mapping_type:
+    description: Detected mapping type
+    value: ${{ steps.run.outputs.mapping_type }}
+  expected_mapping:
+    description: Expected mapping for loader
+    value: ${{ steps.run.outputs.expected_mapping }}
+  validation_status:
+    description: pass|fail
+    value: ${{ steps.run.outputs.validation_status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate mappings
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=("--project-root" "${{ inputs.project-root }}")
+        if [[ -n "${{ inputs.loader }}" ]]; then
+          args+=("--loader" "${{ inputs.loader }}")
+        fi
+        if [[ -n "${{ inputs.artifact-path }}" ]]; then
+          args+=("--artifact-path" "${{ inputs.artifact-path }}")
+        fi
+        bash "${{ github.action_path }}/../../../scripts/validate-mappings.sh" "${args[@]}" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,6 @@
+version: "1.0"
+settings:
+  auto_resolve_latest: false
+
+dependencies:
+  runtime: []

@@ -1,0 +1,146 @@
+name: Reusable - Release (Artifacts)
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for Gradle
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags)
+        required: false
+        type: string
+        default: build
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build and upload artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip binutils
+
+      - name: Detect project configuration
+        id: detect
+        uses: ./.github/actions/detect-project
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate optional dependencies.yml
+        uses: ./.github/actions/validate-dependencies
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifacts (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: ./.github/actions/validate-artifacts
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate mappings (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: ./.github/actions/validate-mappings
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate artifacts and mappings (multi-loader)
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="${{ inputs.project-root }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+          IFS=',' read -r -a loaders <<< "$active_loaders"
+          for loader in "${loaders[@]}"; do
+            echo "Validating loader=$loader"
+            bash scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
+            bash scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
+          done
+
+      - name: Resolve enforced artifact paths
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+
+          artifact_paths=""
+
+          if [[ "$loader_multi" == "true" ]]; then
+            IFS=',' read -r -a loaders <<< "$active_loaders"
+            for loader in "${loaders[@]}"; do
+              out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
+              if [[ -z "$out_path" ]]; then
+                echo "ERROR: failed to resolve artifact_path for loader=${loader}" >&2
+                exit 1
+              fi
+              if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+                echo "ERROR: expected artifact missing: ${out_path}" >&2
+                exit 1
+              fi
+              artifact_paths+="${out_path}"$'\n'
+            done
+          else
+            out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
+            if [[ -z "$out_path" ]]; then
+              echo "ERROR: failed to resolve artifact_path" >&2
+              exit 1
+            fi
+            if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+              echo "ERROR: expected artifact missing: ${out_path}" >&2
+              exit 1
+            fi
+            artifact_paths+="${out_path}"$'\n'
+          fi
+
+          {
+            echo 'artifact_paths<<EOF'
+            printf '%s' "$artifact_paths"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            ${{ inputs.project-root }}/${{ steps.artifacts.outputs.artifact_paths }}
+          if-no-files-found: error

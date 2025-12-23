@@ -1,0 +1,45 @@
+name: Detect project configuration
+description: Detects loader structure and validates canonical gradle.properties keys (migration-only).
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+
+outputs:
+  project_root:
+    description: Project root used for detection
+    value: ${{ steps.detect.outputs.project_root }}
+  detected_loaders:
+    description: Comma-separated loaders detected from structure (forge,neoforge,fabric)
+    value: ${{ steps.detect.outputs.detected_loaders }}
+  loader_multi:
+    description: Whether project declares multi-loader
+    value: ${{ steps.detect.outputs.loader_multi }}
+  loader_type:
+    description: Single-loader type (empty when multi-loader)
+    value: ${{ steps.detect.outputs.loader_type }}
+  active_loaders:
+    description: Active loaders (single or comma-separated)
+    value: ${{ steps.detect.outputs.active_loaders }}
+  minecraft_version:
+    description: Minecraft version for this branch
+    value: ${{ steps.detect.outputs.minecraft_version }}
+  mod_id:
+    description: Mod id
+    value: ${{ steps.detect.outputs.mod_id }}
+  mod_version:
+    description: Mod version
+    value: ${{ steps.detect.outputs.mod_version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect and validate
+      id: detect
+      shell: bash
+      run: |
+        set -euo pipefail
+        bash "${{ github.action_path }}/../../../scripts/quick-detect.sh" \
+          --project-root "${{ inputs.project-root }}" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,165 @@
+name: Reusable - Build
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for Gradle
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags)
+        required: false
+        type: string
+        default: build
+    outputs:
+      loader_multi:
+        description: Whether project declares multi-loader
+        value: ${{ jobs.build.outputs.loader_multi }}
+      active_loaders:
+        description: Active loaders (single or comma-separated)
+        value: ${{ jobs.build.outputs.active_loaders }}
+      minecraft_version:
+        description: Minecraft version
+        value: ${{ jobs.build.outputs.minecraft_version }}
+      mod_id:
+        description: Mod id
+        value: ${{ jobs.build.outputs.mod_id }}
+      mod_version:
+        description: Mod version
+        value: ${{ jobs.build.outputs.mod_version }}
+      artifact_paths:
+        description: Newline-separated artifact paths (relative to project root)
+        value: ${{ jobs.build.outputs.artifact_paths }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    outputs:
+      loader_multi: ${{ steps.detect.outputs.loader_multi }}
+      active_loaders: ${{ steps.detect.outputs.active_loaders }}
+      minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      mod_id: ${{ steps.detect.outputs.mod_id }}
+      mod_version: ${{ steps.detect.outputs.mod_version }}
+      artifact_paths: ${{ steps.artifacts.outputs.artifact_paths }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip binutils
+
+      - name: Detect project configuration
+        id: detect
+        uses: ./.github/actions/detect-project
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate optional dependencies.yml
+        id: deps
+        uses: ./.github/actions/validate-dependencies
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifacts (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: ./.github/actions/validate-artifacts
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate mappings (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: ./.github/actions/validate-mappings
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate artifacts and mappings (multi-loader)
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="${{ inputs.project-root }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+          IFS=',' read -r -a loaders <<< "$active_loaders"
+          for loader in "${loaders[@]}"; do
+            echo "Validating loader=$loader"
+            bash scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
+            bash scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
+          done
+
+      - name: Resolve enforced artifact paths
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+
+          artifact_paths=""
+
+          if [[ "$loader_multi" == "true" ]]; then
+            IFS=',' read -r -a loaders <<< "$active_loaders"
+            for loader in "${loaders[@]}"; do
+              out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
+              if [[ -z "$out_path" ]]; then
+                echo "ERROR: failed to resolve artifact_path for loader=${loader}" >&2
+                exit 1
+              fi
+              if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+                echo "ERROR: expected artifact missing: ${out_path}" >&2
+                exit 1
+              fi
+              artifact_paths+="${out_path}"$'\n'
+            done
+          else
+            out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
+            if [[ -z "$out_path" ]]; then
+              echo "ERROR: failed to resolve artifact_path" >&2
+              exit 1
+            fi
+            if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+              echo "ERROR: expected artifact missing: ${out_path}" >&2
+              exit 1
+            fi
+            artifact_paths+="${out_path}"$'\n'
+          fi
+
+          {
+            echo 'artifact_paths<<EOF'
+            printf '%s' "$artifact_paths"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"

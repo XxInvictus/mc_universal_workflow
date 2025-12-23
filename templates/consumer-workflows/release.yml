@@ -1,0 +1,13 @@
+name: Release
+on:
+  push:
+    branches:
+      - '*-release'
+
+jobs:
+  release:
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-release.yml@main
+    with:
+      project-root: .
+      java-version: '21'
+      gradle-args: build

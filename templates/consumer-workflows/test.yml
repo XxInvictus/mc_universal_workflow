@@ -1,0 +1,12 @@
+name: Test
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
+    with:
+      project-root: .
+      java-version: '21'
+      gradle-args: test

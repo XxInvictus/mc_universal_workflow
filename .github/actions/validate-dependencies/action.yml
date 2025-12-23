@@ -1,0 +1,35 @@
+name: Validate dependencies.yml
+description: Validates optional dependencies.yml as enrichment-only and emits summary outputs.
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+  deps-file:
+    description: Path to dependencies.yml relative to project root
+    required: false
+    default: dependencies.yml
+
+outputs:
+  dependencies_present:
+    description: Whether dependencies.yml exists
+    value: ${{ steps.validate.outputs.dependencies_present }}
+  dependencies_schema_version:
+    description: Parsed schema version
+    value: ${{ steps.validate.outputs.dependencies_schema_version }}
+  dependencies_runtime_count:
+    description: Number of runtime deps
+    value: ${{ steps.validate.outputs.dependencies_runtime_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate
+      id: validate
+      shell: bash
+      run: |
+        set -euo pipefail
+        bash "${{ github.action_path }}/../../../scripts/validate-dependencies-yml.sh" \
+          --project-root "${{ inputs.project-root }}" \
+          --deps-file "${{ inputs.deps-file }}" >> "$GITHUB_OUTPUT"

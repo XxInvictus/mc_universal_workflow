@@ -1,0 +1,47 @@
+name: Validate artifacts
+description: Validates built artifacts are sane mod jars and contain required loader metadata.
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+  loader:
+    description: Loader to validate for (required when loader_multi=true)
+    required: false
+    default: ''
+  artifact-path:
+    description: Artifact path relative to project root (optional)
+    required: false
+    default: ''
+
+outputs:
+  loader_type:
+    description: Effective loader type validated
+    value: ${{ steps.run.outputs.loader_type }}
+  minecraft_version:
+    description: Minecraft version
+    value: ${{ steps.run.outputs.minecraft_version }}
+  artifact_path:
+    description: Artifact path validated (relative to project root)
+    value: ${{ steps.run.outputs.artifact_path }}
+  validation_status:
+    description: pass
+    value: ${{ steps.run.outputs.validation_status }}
+
+runs:
+  using: composite
+  steps:
+    - name: Validate artifact
+      id: run
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=("--project-root" "${{ inputs.project-root }}")
+        if [[ -n "${{ inputs.loader }}" ]]; then
+          args+=("--loader" "${{ inputs.loader }}")
+        fi
+        if [[ -n "${{ inputs.artifact-path }}" ]]; then
+          args+=("--artifact-path" "${{ inputs.artifact-path }}")
+        fi
+        bash "${{ github.action_path }}/../../../scripts/validate-artifacts.sh" "${args[@]}" >> "$GITHUB_OUTPUT"

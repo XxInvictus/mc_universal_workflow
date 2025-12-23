@@ -1,0 +1,13 @@
+name: Runtime Test
+on:
+  workflow_dispatch:
+
+jobs:
+  runtime-test:
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
+    with:
+      project-root: .
+      java-version: '21'
+      gradle-args: build
+      cache-mc: github
+      fabric-api-version: none

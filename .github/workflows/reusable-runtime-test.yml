@@ -1,0 +1,180 @@
+name: Reusable - Runtime Test
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for mc-runtime-test
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags) to build artifacts before runtime test
+        required: false
+        type: string
+        default: build
+      cache-mc:
+        description: Cache strategy for .minecraft (github|blacksmith|true|false)
+        required: false
+        type: string
+        default: github
+      fabric-api-version:
+        description: Fabric API version to download (or none)
+        required: false
+        type: string
+        default: none
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect
+    runs-on: ubuntu-latest
+    outputs:
+      minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      loader_multi: ${{ steps.detect.outputs.loader_multi }}
+      loaders_json: ${{ steps.loaders.outputs.loaders_json }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect project configuration
+        id: detect
+        uses: ./.github/actions/detect-project
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Compute loaders matrix
+        id: loaders
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          if [[ "$loader_multi" == "true" ]]; then
+            loaders_csv="${{ steps.detect.outputs.active_loaders }}"
+          else
+            loaders_csv="${{ steps.detect.outputs.loader_type }}"
+          fi
+
+          if [[ -z "$loaders_csv" ]]; then
+            echo "ERROR: failed to determine loaders list" >&2
+            exit 1
+          fi
+
+          # Convert comma-separated list to JSON array.
+          loaders_json="["
+          first=true
+          IFS=',' read -r -a loaders <<< "$loaders_csv"
+          for loader in "${loaders[@]}"; do
+            [[ -n "$loader" ]] || continue
+            if [[ "$first" == "true" ]]; then
+              first=false
+            else
+              loaders_json+=","
+            fi
+            loaders_json+="\"${loader}\""
+          done
+          loaders_json+="]"
+
+          echo "loaders_json=$loaders_json" >> "$GITHUB_OUTPUT"
+
+  runtime-test:
+    name: Runtime test (${{ matrix.loader }})
+    runs-on: ubuntu-latest
+    needs: detect
+    env:
+      ARTIFACT_REGEX: ''
+    strategy:
+      fail-fast: false
+      matrix:
+        loader: ${{ fromJSON(needs.detect.outputs.loaders_json) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y unzip binutils jq
+
+      - name: Install yq (pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YQ_VERSION="v4.44.3"
+          ARCH="amd64"
+          OS="linux"
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${OS}_${ARCH}" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifact and mappings
+        uses: ./.github/actions/validate-artifacts
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Validate mappings
+        uses: ./.github/actions/validate-mappings
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Prepare test environment
+        id: env
+        uses: ./.github/actions/prepare-test-env
+        with:
+          project-root: ${{ inputs.project-root }}
+          loader: ${{ matrix.loader }}
+
+      - name: Compute artifact regex
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_path="${{ steps.env.outputs.artifact_path }}"
+          artifact_file="$(basename "$artifact_path")"
+
+          # Escape regex metacharacters for a strict filename match.
+          escaped="$(printf '%s' "$artifact_file" | sed -e 's/[.[\^$*+?(){|]/\\&/g')"
+          echo "ARTIFACT_REGEX=^${escaped}$" >> "$GITHUB_ENV"
+
+      - name: Run runtime test
+        uses: ./.github/actions/run-modloader-test
+        with:
+          loader-type: ${{ matrix.loader }}
+          minecraft-version: ${{ needs.detect.outputs.minecraft_version }}
+          # mc-runtime-test matches against mod jar names in ./run/mods
+          artifact-regex: ${{ env.ARTIFACT_REGEX }}
+          java-version: ${{ inputs.java-version }}
+          cache-mc: ${{ inputs.cache-mc }}
+          fabric-api-version: ${{ inputs.fabric-api-version }}
+          # Even though matrix jobs are isolated, keeping cleanup available
+          # matches the design requirement for multi-loader safety.
+          needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}

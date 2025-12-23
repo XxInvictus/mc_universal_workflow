@@ -1,0 +1,72 @@
+name: Prepare test environment
+description: Stages the built mod artifact (and optional extra mods) into ./run/mods for runtime testing.
+
+inputs:
+  project-root:
+    description: Project root directory to inspect
+    required: false
+    default: .
+  loader:
+    description: Loader to prepare (forge|neoforge|fabric). Required for multi-loader projects.
+    required: false
+    default: ''
+  artifact-path:
+    description: Artifact path relative to project root; auto-detected if empty
+    required: false
+    default: ''
+  additional-mods:
+    description: Comma-separated list of additional mod jar paths (relative to project root)
+    required: false
+    default: ''
+  download-runtime-deps:
+    description: If true and dependencies.yml exists, downloads runtime deps into ./run/mods
+    required: false
+    default: 'true'
+  clean-run-dir:
+    description: If true, clears ./run/mods before staging
+    required: false
+    default: 'true'
+
+outputs:
+  test_dir:
+    description: Test directory used by headlesshq/mc-runtime-test (fixed: run)
+    value: ${{ steps.prepare.outputs.test_dir }}
+  mod_dir:
+    description: Mods directory used by headlesshq/mc-runtime-test (fixed: run/mods)
+    value: ${{ steps.prepare.outputs.mod_dir }}
+  loader_type:
+    description: Loader type selected for preparation
+    value: ${{ steps.prepare.outputs.loader_type }}
+  minecraft_version:
+    description: Minecraft version from canonical gradle.properties
+    value: ${{ steps.prepare.outputs.minecraft_version }}
+  artifact_path:
+    description: Resolved artifact path relative to project root
+    value: ${{ steps.prepare.outputs.artifact_path }}
+  dependencies_count:
+    description: Count of additional mods staged (not including the main artifact)
+    value: ${{ steps.prepare.outputs.dependencies_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prepare
+      id: prepare
+      shell: bash
+      run: |
+        set -euo pipefail
+        args=(
+          --project-root "${{ inputs.project-root }}"
+          --clean-run-dir "${{ inputs.clean-run-dir }}"
+        )
+        if [[ -n "${{ inputs.loader }}" ]]; then
+          args+=(--loader "${{ inputs.loader }}")
+        fi
+        if [[ -n "${{ inputs.artifact-path }}" ]]; then
+          args+=(--artifact-path "${{ inputs.artifact-path }}")
+        fi
+        if [[ -n "${{ inputs.additional-mods }}" ]]; then
+          args+=(--additional-mods "${{ inputs.additional-mods }}")
+        fi
+        args+=(--download-runtime-deps "${{ inputs.download-runtime-deps }}")
+        bash "${{ github.action_path }}/../../../scripts/prepare-test-env.sh" "${args[@]}" >> "$GITHUB_OUTPUT"
