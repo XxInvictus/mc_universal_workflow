@@ -18,7 +18,7 @@ env:
 jobs:
   build:
     name: Build Project
-    if: contains(github.env.BUILD_ALLOWED, github.ref_name)
+    if: contains(env.BUILD_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
@@ -27,7 +27,7 @@ jobs:
 
   gradle-test:
     name: Test Project
-    if: contains(github.env.BUILD_ALLOWED, github.ref_name)
+    if: contains(env.BUILD_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
     with:
       project-root: .
@@ -37,7 +37,7 @@ jobs:
 
   runtime-test:
     name: Runtime Test
-    if: contains(github.env.TEST_ALLOWED, github.ref_name)
+    if: contains(env.TEST_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
