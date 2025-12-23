@@ -1,4 +1,4 @@
-name: Reusable - Release (Artifacts)
+name: 1. Reusable - Release (Artifacts)
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Reusable - Runtime Test
+name: 1. Reusable - Runtime Test
 
 on:
   workflow_call:
