@@ -52,7 +52,7 @@ jobs:
 
       - name: Detect project configuration
         id: detect
-        uses: ./.github/actions/detect-project
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
         with:
           project-root: ${{ inputs.project-root }}
 
@@ -142,20 +142,20 @@ jobs:
           ./gradlew ${{ inputs.gradle-args }}
 
       - name: Validate artifact and mappings
-        uses: ./.github/actions/validate-artifacts
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
         with:
           project-root: ${{ inputs.project-root }}
           loader: ${{ matrix.loader }}
 
       - name: Validate mappings
-        uses: ./.github/actions/validate-mappings
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
         with:
           project-root: ${{ inputs.project-root }}
           loader: ${{ matrix.loader }}
 
       - name: Prepare test environment
         id: env
-        uses: ./.github/actions/prepare-test-env
+        uses: XxInvictus/mc_universal_workflow/.github/actions/prepare-test-env@main
         with:
           project-root: ${{ inputs.project-root }}
           loader: ${{ matrix.loader }}
@@ -172,7 +172,7 @@ jobs:
           echo "ARTIFACT_REGEX=^${escaped}$" >> "$GITHUB_ENV"
 
       - name: Run runtime test
-        uses: ./.github/actions/run-modloader-test
+        uses: XxInvictus/mc_universal_workflow/.github/actions/run-modloader-test@main
         with:
           loader-type: ${{ matrix.loader }}
           minecraft-version: ${{ needs.detect.outputs.minecraft_version }}

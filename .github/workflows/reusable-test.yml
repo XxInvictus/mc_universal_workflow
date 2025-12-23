@@ -37,7 +37,7 @@ jobs:
 
       - name: Detect project configuration
         id: detect
-        uses: ./.github/actions/detect-project
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
         with:
           project-root: ${{ inputs.project-root }}
 
@@ -48,7 +48,7 @@ jobs:
           java-version: ${{ steps.detect.outputs.java_version }}
 
       - name: Validate optional dependencies.yml
-        uses: ./.github/actions/validate-dependencies
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
         with:
           project-root: ${{ inputs.project-root }}
 

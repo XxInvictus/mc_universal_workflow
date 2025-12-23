@@ -61,9 +61,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Checkout mc_universal_workflow scripts (sparse)
+        uses: actions/checkout@v4
+        with:
+          repository: XxInvictus/mc_universal_workflow
+          ref: main
+          path: .mc_universal_workflow
+          sparse-checkout: |
+            scripts
+
       - name: Detect project configuration
         id: detect
-        uses: ./.github/actions/detect-project
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
         with:
           project-root: ${{ inputs.project-root }}
 
@@ -75,7 +84,7 @@ jobs:
 
       - name: Validate optional dependencies.yml
         id: deps
-        uses: ./.github/actions/validate-dependencies
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
         with:
           project-root: ${{ inputs.project-root }}
 
@@ -93,13 +102,13 @@ jobs:
 
       - name: Validate artifacts (single-loader)
         if: steps.detect.outputs.loader_multi != 'true'
-        uses: ./.github/actions/validate-artifacts
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
         with:
           project-root: ${{ inputs.project-root }}
 
       - name: Validate mappings (single-loader)
         if: steps.detect.outputs.loader_multi != 'true'
-        uses: ./.github/actions/validate-mappings
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
         with:
           project-root: ${{ inputs.project-root }}
 
@@ -113,8 +122,8 @@ jobs:
           IFS=',' read -r -a loaders <<< "$active_loaders"
           for loader in "${loaders[@]}"; do
             echo "Validating loader=$loader"
-            bash scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
-            bash scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
+            bash ./.mc_universal_workflow/scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
+            bash ./.mc_universal_workflow/scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
           done
 
       - name: Resolve enforced artifact paths
@@ -132,7 +141,7 @@ jobs:
           if [[ "$loader_multi" == "true" ]]; then
             IFS=',' read -r -a loaders <<< "$active_loaders"
             for loader in "${loaders[@]}"; do
-              out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
+              out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
               if [[ -z "$out_path" ]]; then
                 echo "ERROR: failed to resolve artifact_path for loader=${loader}" >&2
                 exit 1
@@ -144,7 +153,7 @@ jobs:
               artifact_paths+="${out_path}"$'\n'
             done
           else
-            out_path="$(bash scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
+            out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
             if [[ -z "$out_path" ]]; then
               echo "ERROR: failed to resolve artifact_path" >&2
               exit 1
