@@ -6,7 +6,7 @@ on:
       - completed
 
 jobs:
-  runtime-test:
+  on-success:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
