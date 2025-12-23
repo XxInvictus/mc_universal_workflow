@@ -137,6 +137,23 @@ make_jar_with_markers "$workdir/fabric" "build/libs/examplemod-fabric-1.21.1-0.1
 
 assert_ok "fabric intermediary validates" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/fabric"
 
+# Fabric: minimal/example mods may not reference net/minecraft at all.
+# In that case, the heuristic cannot infer mapping namespace from the artifact,
+# and validation should not hard-fail.
+mkdir -p "$workdir/fabric-unknown"
+cat > "$workdir/fabric-unknown/gradle.properties" <<'EOF'
+minecraft_version=1.21.1
+mod_id=examplemod
+mod_version=0.1.0
+java_version=21
+loader_multi=false
+loader_type=fabric
+EOF
+
+make_jar_with_markers "$workdir/fabric-unknown" "build/libs/examplemod-fabric-1.21.1-0.1.0.jar" "hello-world"
+
+assert_ok "fabric unknown mapping allowed" bash "$SCRIPT_DIR/validate-mappings.sh" --project-root "$workdir/fabric-unknown"
+
 # NeoForge expects mojmap (net/minecraft paths) and should fail if intermediary markers dominate
 mkdir -p "$workdir/neoforge"
 cat > "$workdir/neoforge/gradle.properties" <<'EOF'

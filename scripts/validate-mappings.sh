@@ -156,6 +156,8 @@ count_re() {
 # - Intermediary: class_#### / method_#### patterns are common
 # - SRG: func_####_a / field_####_a patterns are common
 # - Mojmap: readable net/minecraft paths and low intermediary/srg signals
+any_net_minecraft_count="$(count_re 'net/minecraft/')"
+intermediary_mc_class_count="$(count_re 'net/minecraft/class_[0-9]{1,6}')"
 intermediary_class_count="$(count_re 'class_[0-9]{1,6}')"
 intermediary_method_count="$(count_re 'method_[0-9]{1,6}')"
 intermediary_score=$((intermediary_class_count + intermediary_method_count))
@@ -176,7 +178,7 @@ intermediary_hit=false
 srg_hit=false
 mojmap_hit=false
 
-if [[ "$intermediary_score" -ge 25 ]]; then
+if [[ "$intermediary_mc_class_count" -ge 1 || "$intermediary_score" -ge 25 ]]; then
   intermediary_hit=true
 fi
 
@@ -221,6 +223,22 @@ case "$loader_type" in
     expected_mapping_regex='^intermediary$'
     ;;
 esac
+
+# Fabric: it is possible for minimal/example mods to contain no Minecraft
+# references at all (and therefore have no intermediary markers). In that case,
+# the heuristic cannot determine a mapping namespace from the artifact.
+if [[ "$loader_type" == "fabric" && "$mapping_type" == "unknown" && "$any_net_minecraft_count" -eq 0 ]]; then
+  echo "WARN: mapping type could not be inferred for fabric (no net/minecraft references found); skipping strict mapping validation" >&2
+  validation_status="pass"
+  {
+    echo "loader_type=${loader_type}"
+    echo "artifact_path=${artifact_path}"
+    echo "mapping_type=${mapping_type}"
+    echo "expected_mapping=${expected_mapping}"
+    echo "validation_status=${validation_status}"
+  }
+  exit 0
+fi
 
 validation_status="pass"
 if ! [[ "$mapping_type" =~ $expected_mapping_regex ]]; then
