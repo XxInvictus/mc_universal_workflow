@@ -64,9 +64,9 @@ if [[ ! -f "$artifact_abs" ]]; then
   echo "ERROR: artifact does not exist: ${computed}" >&2
   echo "INFO: expected absolute path: ${artifact_abs}" >&2
   echo "INFO: listing ${project_root%/}/build/libs (if present):" >&2
-  ls -la "${project_root%/}/build/libs" 2>/dev/null || true
+  ls -la "${project_root%/}/build/libs" 1>&2 2>/dev/null || true
   echo "INFO: searching for jars under ${project_root%/}/build (maxdepth 6):" >&2
-  find "${project_root%/}/build" -maxdepth 6 -type f -name '*.jar' -print 2>/dev/null || true
+  find "${project_root%/}/build" -maxdepth 6 -type f -name '*.jar' -print 1>&2 2>/dev/null || true
   echo "INFO: artifact naming must match the enforced contract computed from gradle.properties." >&2
   exit 1
 fi
