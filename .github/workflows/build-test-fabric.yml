@@ -1,5 +1,5 @@
-name: 2. ExampleMod Build/Test
-run-name: 2. ${{ github.ref_name }} - ExampleMod Build/Test
+name: 2. ExampleMod Build/Test - Fabric
+run-name: "2. [1.20.6] - ${{ github.event.head_commit.message }}"
 on:
   push:
     branches:
