@@ -10,7 +10,7 @@ dependencies:
       identifiers:
         modrinth_id: P7dR8mSH
       version:
-        default: "0.136.0+1.21.10"
+        default: "0.138.4+1.21.10"
       source:
         type: modrinth
   # Example: Fabric API for Fabric loader
