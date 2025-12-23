@@ -1,0 +1,54 @@
+name: 2. 1.20.6 - Fabric - ExampleMod Build/Test
+on:
+  push:
+    branches:
+      - 1.20.1-forge
+      - 1.20.1-fabric
+      - 1.20.1-multiloader
+  pull_request:
+    branches:
+      - 1.20.1-forge
+      - 1.20.1-fabric
+      - 1.20.1-multiloader
+
+
+jobs:
+  prepare-outputs:
+    name: Prepare Outputs
+    runs-on: HomeServ
+    outputs:
+      BUILD_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
+      TEST_ALLOWED: '1.20.1-forge'
+    steps:
+      - name: Set up outputs
+        run: echo "Outputs prepared."
+  build:
+    name: Build Project
+    if: contains(needs.prepare-outputs.outputs.BUILD_ALLOWED, github.ref_name)
+    needs: prepare-outputs
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
+    with:
+      project-root: .
+      gradle-args: build
+      runs-on: HomeServ
+
+  gradle-test:
+    name: Test Project
+    if: contains(needs.prepare-outputs.outputs.BUILD_ALLOWED, github.ref_name)
+    needs: [prepare-outputs, build]
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
+    with:
+      project-root: .
+      gradle-args: test
+      runs-on: HomeServ
+
+  runtime-test:
+    name: Runtime Test
+    if: contains(needs.prepare-outputs.outputs.TEST_ALLOWED, github.ref_name)
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
+    with:
+      project-root: .
+      gradle-args: build
+      cache-mc: github
+      runs-on: HomeServ
+    needs: [prepare-outputs, build, gradle-test]
