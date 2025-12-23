@@ -1,0 +1,12 @@
+name: 1.20.1 - Forge - Test
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
+    with:
+      project-root: .
+      gradle-args: test
+      runs-on: HomeServ

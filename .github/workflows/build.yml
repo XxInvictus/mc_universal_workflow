@@ -1,4 +1,4 @@
-name: Build
+name: 1.20.1 - Forge - Build
 on:
   push:
   pull_request:
