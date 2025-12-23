@@ -94,11 +94,35 @@ on:
 jobs:
   release:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-release.yml@main
+    secrets: inherit
     with:
       project-root: .
       gradle-args: build
       runs-on: ubuntu-latest
+
+      # Optional publishing (via Kir-Antipov/mc-publish)
+      publish-github: true
+      publish-modrinth: false
+      modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+      publish-curseforge: false
+      curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
 ```
+
+If publishing is enabled, the workflow creates a tag named:
+
+```text
+${minecraft_version}-${mod_version}
+```
+
+Publishing secrets (in the consumer repo):
+
+- `MODRINTH_TOKEN` (required if `publish-modrinth: true`)
+- `CURSEFORGE_TOKEN` (required if `publish-curseforge: true`)
+
+Recommended repository variables (in the consumer repo):
+
+- `MODRINTH_PROJECT_ID` (used by `modrinth-id`)
+- `CURSEFORGE_PROJECT_ID` (used by `curseforge-id`)
 
 ### Runtime test (HeadlessMC)
 

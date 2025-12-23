@@ -91,6 +91,50 @@ Then update the `uses:` reference to point to the exact ref you want (branch, ta
 
 All reusable workflows accept a `runs-on` input so you can select the runner label to use.
 
+## 4.1) Optional release publishing (GitHub Releases / Modrinth / CurseForge)
+
+The reusable release workflow can optionally publish via `Kir-Antipov/mc-publish`.
+
+When publishing is enabled, it creates (or reuses) a tag named:
+
+```text
+${minecraft_version}-${mod_version}
+```
+
+Consumer repo configuration:
+
+- Repository secrets:
+  - `MODRINTH_TOKEN` (required if `publish-modrinth: true`)
+  - `CURSEFORGE_TOKEN` (required if `publish-curseforge: true`)
+- Recommended repository variables:
+  - `MODRINTH_PROJECT_ID` (used for `modrinth-id`)
+  - `CURSEFORGE_PROJECT_ID` (used for `curseforge-id`)
+
+Example consumer release workflow:
+
+```yaml
+name: Release
+on:
+  push:
+    branches:
+      - '*-release'
+
+jobs:
+  release:
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-release.yml@main
+    secrets: inherit
+    with:
+      project-root: .
+      gradle-args: build
+      runs-on: ubuntu-latest
+
+      publish-github: true
+      publish-modrinth: true
+      modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+      publish-curseforge: true
+      curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
+```
+
 ## 5) Runtime tests (HeadlessMC)
 
 The runtime-test workflow uses `headlesshq/mc-runtime-test@4.1.0` and expects mods staged into:

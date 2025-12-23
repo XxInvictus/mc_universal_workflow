@@ -69,6 +69,103 @@ runs:
         fi
         echo "mc_runtime_test=$mcrt" >> "$GITHUB_OUTPUT"
 
+    - name: Validate Minecraft version exists
+      shell: bash
+      run: |
+        set -euo pipefail
+        mc="${{ inputs.minecraft-version }}"
+        if ! command -v curl >/dev/null 2>&1; then
+          echo "ERROR: curl is required to validate minecraft-version=${mc}. Install curl on the runner." >&2
+          exit 1
+        fi
+
+        # Fail fast on obvious typos like 1.21.11 (not a real Minecraft release).
+        manifest_url="https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+        if ! curl -fsSL "$manifest_url" | tr -d '\n' | grep -Fq "\"id\":\"${mc}\""; then
+          echo "ERROR: minecraft-version '${mc}' not found in Mojang version manifest." >&2
+          echo "This usually means your gradle.properties minecraft_version is wrong (example: 1.21.11 vs 1.21.1)." >&2
+          exit 1
+        fi
+
+    - name: Guard against stale vanilla-only version cache
+      shell: bash
+      run: |
+        set -euo pipefail
+        mc="${{ inputs.minecraft-version }}"
+        loader="${{ inputs.loader-type }}"
+        vanilla_json="$HOME/.minecraft/versions/${mc}/${mc}.json"
+
+        if [[ ! -f "$vanilla_json" ]]; then
+          exit 0
+        fi
+
+        # headlesshq/mc-runtime-test only runs the HeadlessMC download/install commands
+        # when the vanilla JSON is missing. If the vanilla JSON exists but the loader
+        # profile doesn't, force the action to re-run download/install.
+        case "$loader" in
+          fabric)
+            shopt -s nullglob
+            candidates=("$HOME/.minecraft/versions/fabric-loader-"*"-${mc}")
+            if [[ ${#candidates[@]} -eq 0 ]]; then
+              echo "Detected vanilla version JSON but no Fabric loader profile; forcing re-download/install" >&2
+              rm -f "$vanilla_json"
+            fi
+            ;;
+          forge)
+            shopt -s nullglob
+            candidates=("$HOME/.minecraft/versions/forge-"*"-${mc}")
+            if [[ ${#candidates[@]} -eq 0 ]]; then
+              echo "Detected vanilla version JSON but no Forge loader profile; forcing re-download/install" >&2
+              rm -f "$vanilla_json"
+            fi
+            ;;
+          neoforge)
+            shopt -s nullglob
+            candidates=("$HOME/.minecraft/versions/neoforge-"*"-${mc}")
+            if [[ ${#candidates[@]} -eq 0 ]]; then
+              echo "Detected vanilla version JSON but no NeoForge loader profile; forcing re-download/install" >&2
+              rm -f "$vanilla_json"
+            fi
+            ;;
+          *)
+            echo "ERROR: unsupported loader-type=${loader}" >&2
+            exit 1
+            ;;
+        esac
+
+    - name: Validate mc-runtime-test asset exists (pinned release)
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+
+        mc="${{ inputs.minecraft-version }}"
+        mcrt="${{ steps.mcrt.outputs.mc_runtime_test }}"
+        tag="4.1.0"
+
+        if ! command -v curl >/dev/null 2>&1; then
+          echo "ERROR: curl is required to validate mc-runtime-test assets." >&2
+          exit 1
+        fi
+
+        api_url="https://api.github.com/repos/headlesshq/mc-runtime-test/releases/tags/${tag}"
+        json="$(curl -fsSL \
+          -H "Authorization: Bearer ${GH_TOKEN}" \
+          -H "Accept: application/vnd.github+json" \
+          "$api_url")"
+
+        # mc-runtime-test downloads an asset like:
+        #   mc-runtime-test-<mc>-*-<mcrt>-release.jar
+        # For example:
+        #   mc-runtime-test-1.21.1-*-fabric-release.jar
+        asset_regex="\"name\"[[:space:]]*:[[:space:]]*\"mc-runtime-test-${mc}-.*-${mcrt}-release\\.jar\""
+        if ! echo "$json" | grep -Eq "$asset_regex"; then
+          echo "ERROR: headlesshq/mc-runtime-test@${tag} has no asset matching mc-runtime-test-${mc}-*-${mcrt}-release.jar" >&2
+          echo "This means the MC version is unsupported by the pinned runtime-test release, or minecraft-version is wrong." >&2
+          exit 1
+        fi
+
     - name: Run MC runtime test
       id: run
       uses: headlesshq/mc-runtime-test@4.1.0

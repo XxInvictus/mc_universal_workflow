@@ -7,6 +7,15 @@ on:
 jobs:
   release:
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-release.yml@main
+    secrets: inherit
     with:
       project-root: .
       gradle-args: build
+      runs-on: ubuntu-latest
+
+      # Optional publishing (requires secrets/vars in the consumer repo)
+      publish-github: true
+      publish-modrinth: false
+      modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
+      publish-curseforge: false
+      curseforge-id: ${{ vars.CURSEFORGE_PROJECT_ID }}
