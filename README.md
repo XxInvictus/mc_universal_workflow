@@ -44,6 +44,8 @@ See [build_docs/ARTIFACT_NAMING_CONTRACT.md](build_docs/ARTIFACT_NAMING_CONTRACT
 
 All workflows are meant to be called from a consumer repo via `workflow_call`.
 
+All reusable workflows accept a `runs-on` input so you can select your runner label (for example `ubuntu-latest` or `self-hosted`).
+
 ### Build
 
 `.github/workflows/build.yml` in the consumer repo:
@@ -60,6 +62,7 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+      runs-on: ubuntu-latest
 ```
 
 ### Test
@@ -76,6 +79,7 @@ jobs:
     with:
       project-root: .
       gradle-args: test
+      runs-on: ubuntu-latest
 ```
 
 ### Release (build + upload artifacts)
@@ -93,11 +97,15 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+      runs-on: ubuntu-latest
 ```
 
 ### Runtime test (HeadlessMC)
 
 This uses `headlesshq/mc-runtime-test@4.1.0` under the hood and stages the built jar into `./run/mods`.
+
+> [!WARNING]
+> Runtime tests are intended for self-hosted runners. They can take several minutes and download/cache large Minecraft assets; running them on GitHub-hosted runners may incur unexpected costs.
 
 ```yaml
 name: Runtime Test
@@ -111,6 +119,7 @@ jobs:
       project-root: .
       gradle-args: build
       cache-mc: github
+      runs-on: self-hosted
 ```
 
 ## Optional `dependencies.yml`

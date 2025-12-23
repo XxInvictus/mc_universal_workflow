@@ -9,7 +9,8 @@ This guide shows how to adopt the reusable GitHub Actions workflows in this repo
 
 ## Prerequisites
 
-- GitHub-hosted Ubuntu runners (the workflows assume common Linux tools are available).
+- Build/test/release: GitHub-hosted Ubuntu runners work out of the box (the workflows assume common Linux tools are available).
+- Runtime tests: strongly recommended to use self-hosted runners due to run time and download/caching load.
 - Groovy Gradle (`build.gradle`).
 - You accept the repo contract:
   - Canonical `gradle.properties` keys are required.
@@ -88,6 +89,8 @@ Templates:
 
 Then update the `uses:` reference to point to the exact ref you want (branch, tag, or commit SHA).
 
+All reusable workflows accept a `runs-on` input so you can select the runner label to use.
+
 ## 5) Runtime tests (HeadlessMC)
 
 The runtime-test workflow uses `headlesshq/mc-runtime-test@4.1.0` and expects mods staged into:
@@ -99,6 +102,9 @@ This repo’s prep logic stages:
 - Your built mod jar
 - Optional additional mods
 - Optional downloaded runtime deps from `dependencies.yml`
+
+> [!WARNING]
+> Runtime testing is intended for self-hosted runners. It can take several minutes and download/cache large Minecraft assets; running it on GitHub-hosted runners may incur unexpected costs.
 
 ## 6) Optional `dependencies.yml` (runtime-only dependency downloads)
 
