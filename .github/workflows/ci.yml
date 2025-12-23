@@ -64,6 +64,7 @@ jobs:
           bash -n scripts/tests/prepare-test-env-test.sh
           bash -n scripts/tests/health-check-test.sh
           bash -n scripts/tests/migration-helpers-test.sh
+          bash -n scripts/tests/mojang-version-manifest-test.sh
 
       - name: Run script tests
         shell: bash
@@ -80,6 +81,7 @@ jobs:
           bash scripts/tests/prepare-test-env-test.sh
           bash scripts/tests/health-check-test.sh
           bash scripts/tests/migration-helpers-test.sh
+          bash scripts/tests/mojang-version-manifest-test.sh
 
   composite-action:
     name: Validate composite action

@@ -167,12 +167,23 @@ runs:
         # mc-runtime-test downloads an asset like:
         #   mc-runtime-test-<mc>-*-<mcrt>-release.jar
         # For example:
-        #   mc-runtime-test-1.21.1-*-fabric-release.jar
-        asset_regex="\"name\"[[:space:]]*:[[:space:]]*\"mc-runtime-test-${mc}-.*-${mcrt}-release\\.jar\""
-        if ! echo "$json" | grep -Eq "$asset_regex"; then
-          echo "ERROR: headlesshq/mc-runtime-test@${tag} has no asset matching mc-runtime-test-${mc}-*-${mcrt}-release.jar" >&2
-          echo "This means the MC version is unsupported by the pinned runtime-test release, or minecraft-version is wrong." >&2
-          exit 1
+        #   mc-runtime-test-1.21.10-4.1.0-fabric-release.jar
+        #
+        # Use jq when available; piping through grep -q can trigger SIGPIPE under pipefail.
+        asset_re="^mc-runtime-test-${mc}-.*-${mcrt}-release\\.jar$"
+        if command -v jq >/dev/null 2>&1; then
+          if ! jq -e --arg re "$asset_re" '.assets | map(.name) | any(test($re))' <<<"$json" >/dev/null; then
+            echo "ERROR: headlesshq/mc-runtime-test@${tag} has no asset matching mc-runtime-test-${mc}-*-${mcrt}-release.jar" >&2
+            echo "This means the MC version is unsupported by the pinned runtime-test release, or minecraft-version is wrong." >&2
+            exit 1
+          fi
+        else
+          # Fallback: basic string scan (less robust than jq).
+          if ! grep -Eq "mc-runtime-test-${mc}-.*-${mcrt}-release\\.jar" <<<"$json"; then
+            echo "ERROR: headlesshq/mc-runtime-test@${tag} has no asset matching mc-runtime-test-${mc}-*-${mcrt}-release.jar" >&2
+            echo "This means the MC version is unsupported by the pinned runtime-test release, or minecraft-version is wrong." >&2
+            exit 1
+          fi
         fi
 
     - name: Run MC runtime test
