@@ -81,10 +81,19 @@ runs:
 
         # Fail fast on obvious typos like 1.21.11 (not a real Minecraft release).
         manifest_url="https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
-        if ! curl -fsSL "$manifest_url" | tr -d '\n' | grep -Fq "\"id\":\"${mc}\""; then
-          echo "ERROR: minecraft-version '${mc}' not found in Mojang version manifest." >&2
-          echo "This usually means your gradle.properties minecraft_version is wrong (example: 1.21.11 vs 1.21.1)." >&2
-          exit 1
+        if command -v jq >/dev/null 2>&1; then
+          if ! curl -fsSL "$manifest_url" | jq -e --arg mc "$mc" '.versions | any(.id == $mc)' >/dev/null; then
+            echo "ERROR: minecraft-version '${mc}' not found in Mojang version manifest." >&2
+            echo "This usually means your gradle.properties minecraft_version is wrong (example: 1.21.11 vs 1.21.1)." >&2
+            exit 1
+          fi
+        else
+          # Fallback for minimal runners: normalize whitespace so a fixed-string match works.
+          if ! curl -fsSL "$manifest_url" | tr -d '\n\r\t ' | grep -Fq "\"id\":\"${mc}\""; then
+            echo "ERROR: minecraft-version '${mc}' not found in Mojang version manifest." >&2
+            echo "This usually means your gradle.properties minecraft_version is wrong (example: 1.21.11 vs 1.21.1)." >&2
+            exit 1
+          fi
         fi
 
     - name: Guard against stale vanilla-only version cache
