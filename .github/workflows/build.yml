@@ -5,8 +5,8 @@ on:
 
 jobs:
   build:
-    runs-on: HomeServ
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
       gradle-args: build
+      runs-on: HomeServ
