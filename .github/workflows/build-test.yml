@@ -1,11 +1,24 @@
-name: 1.20.1 - Forge - Build/Test
+name: 2. 1.20.1 - Forge - ExampleMod Build/Test
 on:
   push:
+    branches:
+      - 1.20.1-forge
+      - 1.20.1-fabric
+      - 1.20.1-multiloader
   pull_request:
+    branches:
+      - 1.20.1-forge
+      - 1.20.1-fabric
+      - 1.20.1-multiloader
+
+env:
+  BUILD_ALLOWED: '1.20.1-forge, 1.20.1-fabric, 1.20.1-multiloader'
+  TEST_ALLOWED: '1.20.1-forge'
 
 jobs:
   build:
     name: Build Project
+    if: contains(github.env.BUILD_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
     with:
       project-root: .
@@ -14,6 +27,7 @@ jobs:
 
   gradle-test:
     name: Test Project
+    if: contains(github.env.BUILD_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
     with:
       project-root: .
@@ -23,6 +37,7 @@ jobs:
 
   runtime-test:
     name: Runtime Test
+    if: contains(github.env.TEST_ALLOWED, github.ref_name)
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
