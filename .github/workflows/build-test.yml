@@ -32,22 +32,20 @@ jobs:
   gradle-test:
     name: Test Project
     if: contains(needs.prepare-outputs.outputs.BUILD_ALLOWED, github.ref_name)
-    needs: prepare-outputs
+    needs: [prepare-outputs, build]
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
     with:
       project-root: .
       gradle-args: test
       runs-on: HomeServ
-    needs: build
 
   runtime-test:
     name: Runtime Test
     if: contains(needs.prepare-outputs.outputs.TEST_ALLOWED, github.ref_name)
-    needs: prepare-outputs
     uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
     with:
       project-root: .
       gradle-args: build
       cache-mc: github
       runs-on: HomeServ
-    needs: [build, gradle-test]
+    needs: [prepare-outputs, build, gradle-test]
