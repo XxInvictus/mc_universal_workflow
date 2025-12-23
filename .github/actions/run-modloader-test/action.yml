@@ -8,8 +8,8 @@ inputs:
   minecraft-version:
     description: Minecraft version
     required: true
-  artifact-regex:
-    description: Regex to match the mod jar staged in ./run/mods
+  modloader-regex:
+    description: Regex to match the modloader jar
     required: true
   java-version:
     description: Java version for mc-runtime-test
@@ -75,7 +75,7 @@ runs:
       with:
         mc: ${{ inputs.minecraft-version }}
         modloader: ${{ inputs.loader-type }}
-        regex: ${{ inputs.artifact-regex }}
+        regex: ${{ inputs.modloader-regex }}
         java: ${{ inputs.java-version }}
         mc-runtime-test: ${{ steps.mcrt.outputs.mc_runtime_test }}
         fabric-api: ${{ inputs.fabric-api-version }}

@@ -96,7 +96,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     needs: detect
     env:
-      ARTIFACT_REGEX: ''
+      MODLOADER_REGEX: ''
     strategy:
       fail-fast: false
       matrix:
@@ -160,16 +160,19 @@ jobs:
           project-root: ${{ inputs.project-root }}
           loader: ${{ matrix.loader }}
 
-      - name: Compute artifact regex
+      - name: Compute modloader regex
         shell: bash
         run: |
           set -euo pipefail
-          artifact_path="${{ steps.env.outputs.artifact_path }}"
-          artifact_file="$(basename "$artifact_path")"
-
-          # Escape regex metacharacters for a strict filename match.
-          escaped="$(printf '%s' "$artifact_file" | sed -e 's/[.[\^$*+?(){|]/\\&/g')"
-          echo "ARTIFACT_REGEX=^${escaped}$" >> "$GITHUB_ENV"
+          case "${{ matrix.loader }}" in
+            forge) echo 'MODLOADER_REGEX=^.*forge.*$' >> "$GITHUB_ENV" ;;
+            neoforge) echo 'MODLOADER_REGEX=^.*neoforge.*$' >> "$GITHUB_ENV" ;;
+            fabric) echo 'MODLOADER_REGEX=^.*fabric.*$' >> "$GITHUB_ENV" ;;
+            *)
+              echo "ERROR: unsupported loader=${{ matrix.loader }}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Determine Fabric API source
         id: fabric_api
@@ -212,11 +215,9 @@ jobs:
         with:
           loader-type: ${{ matrix.loader }}
           minecraft-version: ${{ needs.detect.outputs.minecraft_version }}
-          # mc-runtime-test matches against mod jar names in ./run/mods
-          artifact-regex: ${{ env.ARTIFACT_REGEX }}
+          # mc-runtime-test matches against the modloader jar name.
+          modloader-regex: ${{ env.MODLOADER_REGEX }}
           java-version: ${{ needs.detect.outputs.java_version }}
           cache-mc: ${{ inputs.cache-mc }}
           fabric-api-version: ${{ steps.fabric_api.outputs.fabric_api_version }}
-          # Even though matrix jobs are isolated, keeping cleanup available
-          # matches the design requirement for multi-loader safety.
           needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}
