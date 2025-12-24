@@ -3,10 +3,10 @@ run-name: "2. [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}
 on:
   push:
     branches:
-      - *-multiloader
+      - '*-multiloader'
   pull_request:
     branches:
-      - *-multiloader
+      - '*-multiloader'
 
 jobs:
   build:
