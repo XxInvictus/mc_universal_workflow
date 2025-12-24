@@ -1,13 +1,14 @@
-name: 2. ExampleMod Build/Test - Multiloader
-run-name: "2. [1.20.1] - ${{ github.event.head_commit.message }}"
+name: 2. ExampleMod Build/Test - NeoForge
+run-name: "2. [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"
 on:
   push:
     branches:
-      - 1.20.1-multiloader
+      - 1.20.1-neoforge
+      - 1.21.1-neoforge
   pull_request:
     branches:
-      - 1.20.1-multiloader
-
+      - 1.20.1-neoforge
+      - 1.21.1-neoforge
 
 jobs:
   build:
@@ -16,6 +17,8 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+      upload-artifacts: true
+      artifact-name: build-artifacts
       runs-on: HomeServ
 
   gradle-test:
@@ -33,6 +36,8 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+      use-build-artifacts: true
+      artifact-name: build-artifacts
       cache-mc: github
       runs-on: HomeServ
     needs: [build, gradle-test]
