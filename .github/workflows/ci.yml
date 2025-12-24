@@ -145,7 +145,8 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf single-fixture multi-fixture
-          rm -f ./*.jar || true
+          rm -rf ./build ./forge ./fabric || true
+          rm -f ./*.jar ./.mc_universal_workflow_artifact_root || true
 
       - name: Download single-loader artifact set
         uses: actions/download-artifact@v4
@@ -157,7 +158,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ -f "single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected jar not restored under single-fixture/build/libs" >&2; exit 1; }
+          # Note: upload-artifact stores files relative to the common ancestor (single-fixture/).
+          # When downloading into '.', the single-fixture/ prefix is not preserved.
+          [[ -f "./.mc_universal_workflow_artifact_root" ]] || { echo "ERROR: expected marker not restored at artifact root" >&2; exit 1; }
+          [[ -f "build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected jar not restored under build/libs" >&2; exit 1; }
 
           # Regression check: the jar should not be flattened into workspace root.
           [[ ! -f "./examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: jar was flattened into workspace root" >&2; exit 1; }
@@ -172,8 +176,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ -f "multi-fixture/forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected forge jar not restored under multi-fixture/forge/build/libs" >&2; exit 1; }
-          [[ -f "multi-fixture/fabric/build/libs/examplemod-fabric-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected fabric jar not restored under multi-fixture/fabric/build/libs" >&2; exit 1; }
+          # Note: upload-artifact stores files relative to the common ancestor (multi-fixture/).
+          # When downloading into '.', the multi-fixture/ prefix is not preserved.
+          [[ -f "forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected forge jar not restored under forge/build/libs" >&2; exit 1; }
+          [[ -f "fabric/build/libs/examplemod-fabric-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected fabric jar not restored under fabric/build/libs" >&2; exit 1; }
 
       - name: "Create single-loader fixture (known-broken: no marker)"
         shell: bash
