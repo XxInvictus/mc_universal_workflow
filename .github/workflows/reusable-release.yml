@@ -1,0 +1,398 @@
+name: 1. Reusable - Release (Artifacts)
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for Gradle
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags)
+        required: false
+        type: string
+        default: build
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
+      publish-github:
+        description: Publish assets to GitHub Releases
+        required: false
+        type: boolean
+        default: false
+      publish-modrinth:
+        description: Publish to Modrinth (requires `modrinth-id` + `MODRINTH_TOKEN`)
+        required: false
+        type: boolean
+        default: false
+      modrinth-id:
+        description: Modrinth project ID (e.g. `abcdEFGH`)
+        required: false
+        type: string
+        default: ''
+      publish-curseforge:
+        description: Publish to CurseForge (requires `curseforge-id` + `CURSEFORGE_TOKEN`)
+        required: false
+        type: boolean
+        default: false
+      curseforge-id:
+        description: CurseForge project ID (numeric)
+        required: false
+        type: string
+        default: ''
+      version-type:
+        description: Release type (release, beta, alpha)
+        required: false
+        type: string
+        default: release
+    secrets:
+      MODRINTH_TOKEN:
+        description: Modrinth API token
+        required: false
+      CURSEFORGE_TOKEN:
+        description: CurseForge API token
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and upload artifacts
+    runs-on: ${{ inputs.runs-on }}
+    outputs:
+      artifact_paths: ${{ steps.artifacts.outputs.artifact_paths }}
+      minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      mod_id: ${{ steps.detect.outputs.mod_id }}
+      mod_version: ${{ steps.detect.outputs.mod_version }}
+      loader_multi: ${{ steps.detect.outputs.loader_multi }}
+      loader_type: ${{ steps.detect.outputs.loader_type }}
+      active_loaders: ${{ steps.detect.outputs.active_loaders }}
+      release_tag: ${{ steps.release_meta.outputs.release_tag }}
+      loaders_multiline: ${{ steps.release_meta.outputs.loaders_multiline }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout mc_universal_workflow scripts (sparse)
+        uses: actions/checkout@v4
+        with:
+          repository: XxInvictus/mc_universal_workflow
+          ref: main
+          path: .mc_universal_workflow
+          sparse-checkout: |
+            scripts
+
+      - name: Detect project configuration
+        id: detect
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Compute release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          minecraft_version="${{ steps.detect.outputs.minecraft_version }}"
+          mod_version="${{ steps.detect.outputs.mod_version }}"
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          loader_type="${{ steps.detect.outputs.loader_type }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+
+          release_tag="${minecraft_version}-${mod_version}"
+
+          loaders_multiline=""
+          if [[ "$loader_multi" == "true" ]]; then
+            IFS=',' read -r -a loaders <<< "$active_loaders"
+            for loader in "${loaders[@]}"; do
+              loaders_multiline+="${loader}"$'\n'
+            done
+          else
+            loaders_multiline+="${loader_type}"$'\n'
+          fi
+
+          {
+            echo "release_tag=${release_tag}"
+            echo 'loaders_multiline<<EOF'
+            printf '%s' "$loaders_multiline"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.detect.outputs.java_version }}
+
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install validation tools
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Build (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
+
+      - name: Validate artifacts (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Validate mappings (single-loader)
+        if: steps.detect.outputs.loader_multi != 'true'
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Ensure strings (binutils) is available
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v strings >/dev/null 2>&1; then
+            exit 0
+          fi
+          echo "strings not found; attempting to install binutils" >&2
+          if ! command -v apt-get >/dev/null 2>&1; then
+            echo "ERROR: strings not found and apt-get is unavailable. Install binutils (strings) on the runner." >&2
+            exit 1
+          fi
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then
+            SUDO="sudo"
+          fi
+          $SUDO apt-get update -y
+          $SUDO apt-get install -y binutils
+          command -v strings >/dev/null 2>&1 || { echo "ERROR: strings still not available after attempting binutils install" >&2; exit 1; }
+
+      - name: Validate artifacts and mappings (multi-loader)
+        if: steps.detect.outputs.loader_multi == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="${{ inputs.project-root }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+          IFS=',' read -r -a loaders <<< "$active_loaders"
+          for loader in "${loaders[@]}"; do
+            echo "Validating loader=$loader"
+            bash ./.mc_universal_workflow/scripts/validate-artifacts.sh --project-root "$project_root" --loader "$loader"
+            bash ./.mc_universal_workflow/scripts/validate-mappings.sh --project-root "$project_root" --loader "$loader"
+          done
+
+      - name: Resolve enforced artifact paths
+        id: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+          loader_multi="${{ steps.detect.outputs.loader_multi }}"
+          active_loaders="${{ steps.detect.outputs.active_loaders }}"
+
+          artifact_paths=""
+
+          if [[ "$loader_multi" == "true" ]]; then
+            IFS=',' read -r -a loaders <<< "$active_loaders"
+            for loader in "${loaders[@]}"; do
+              out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" --loader "$loader" | sed -n 's/^artifact_path=//p' | head -n 1)"
+              if [[ -z "$out_path" ]]; then
+                echo "ERROR: failed to resolve artifact_path for loader=${loader}" >&2
+                exit 1
+              fi
+              if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+                echo "ERROR: expected artifact missing: ${out_path}" >&2
+                exit 1
+              fi
+              artifact_paths+="${out_path}"$'\n'
+            done
+          else
+            out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
+            if [[ -z "$out_path" ]]; then
+              echo "ERROR: failed to resolve artifact_path" >&2
+              exit 1
+            fi
+            if [[ ! -f "${project_root%/}/${out_path}" ]]; then
+              echo "ERROR: expected artifact missing: ${out_path}" >&2
+              exit 1
+            fi
+            artifact_paths+="${out_path}"$'\n'
+          fi
+
+          {
+            echo 'artifact_paths<<EOF'
+            printf '%s' "$artifact_paths"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            ${{ inputs.project-root }}/${{ steps.artifacts.outputs.artifact_paths }}
+          if-no-files-found: error
+
+  publish:
+    name: Tag and publish
+    if: ${{ inputs.publish-github || inputs.publish-modrinth || inputs.publish-curseforge }}
+    needs: build
+    runs-on: ${{ inputs.runs-on }}
+    permissions:
+      contents: write
+    steps:
+      - name: Validate publishing inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ inputs.publish-modrinth }}" == "true" ]]; then
+            if [[ -z "${{ inputs.modrinth-id }}" ]]; then
+              echo "ERROR: publish-modrinth=true but modrinth-id is empty" >&2
+              exit 1
+            fi
+            if [[ -z "${{ secrets.MODRINTH_TOKEN }}" ]]; then
+              echo "ERROR: publish-modrinth=true but MODRINTH_TOKEN is not set" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "${{ inputs.publish-curseforge }}" == "true" ]]; then
+            if [[ -z "${{ inputs.curseforge-id }}" ]]; then
+              echo "ERROR: publish-curseforge=true but curseforge-id is empty" >&2
+              exit 1
+            fi
+            if [[ -z "${{ secrets.CURSEFORGE_TOKEN }}" ]]; then
+              echo "ERROR: publish-curseforge=true but CURSEFORGE_TOKEN is not set" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist
+
+      - name: Prepare changelog file
+        id: changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+          release_tag="${{ needs.build.outputs.release_tag }}"
+          out_file="${RUNNER_TEMP}/mc_universal_release_changelog.md"
+
+          if [[ -f "${project_root%/}/RELEASE_CHANGELOG.md" ]]; then
+            cp "${project_root%/}/RELEASE_CHANGELOG.md" "$out_file"
+          elif [[ -f "${project_root%/}/CHANGELOG.md" ]]; then
+            cp "${project_root%/}/CHANGELOG.md" "$out_file"
+          else
+            printf 'Automated release: %s\n' "$release_tag" > "$out_file"
+          fi
+
+          echo "file=${out_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag exists (idempotent)
+        if: ${{ inputs.publish-github || inputs.publish-modrinth || inputs.publish-curseforge }}
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
+          RELEASE_SHA: ${{ github.sha }}
+        with:
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const sha = process.env.RELEASE_SHA;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const ref = `tags/${tag}`;
+            try {
+              const existing = await github.rest.git.getRef({ owner, repo, ref });
+              const existingSha = existing.data.object.sha;
+              if (existingSha !== sha) {
+                core.setFailed(`Tag '${tag}' already exists but points to ${existingSha}, expected ${sha}`);
+                return;
+              }
+              core.info(`Tag '${tag}' already exists at ${sha}`);
+            } catch (err) {
+              if (err.status !== 404) throw err;
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/tags/${tag}`,
+                sha,
+              });
+              core.info(`Created tag '${tag}' at ${sha}`);
+            }
+
+      - name: Publish (GitHub Releases + optional Modrinth/CurseForge)
+        if: ${{ inputs.publish-github }}
+        uses: Kir-Antipov/mc-publish@v3
+        with:
+          github-token: ${{ github.token }}
+          github-tag: ${{ needs.build.outputs.release_tag }}
+          github-commitish: ${{ github.sha }}
+
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          modrinth-id: ${{ inputs.publish-modrinth && inputs.modrinth-id || '' }}
+          modrinth-token: ${{ inputs.publish-modrinth && secrets.MODRINTH_TOKEN || '' }}
+
+          curseforge-id: ${{ inputs.publish-curseforge && inputs.curseforge-id || '' }}
+          curseforge-token: ${{ inputs.publish-curseforge && secrets.CURSEFORGE_TOKEN || '' }}
+
+      - name: Publish (Modrinth/CurseForge only)
+        if: ${{ !inputs.publish-github && (inputs.publish-modrinth || inputs.publish-curseforge) }}
+        uses: Kir-Antipov/mc-publish@v3
+        with:
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          modrinth-id: ${{ inputs.publish-modrinth && inputs.modrinth-id || '' }}
+          modrinth-token: ${{ inputs.publish-modrinth && secrets.MODRINTH_TOKEN || '' }}
+
+          curseforge-id: ${{ inputs.publish-curseforge && inputs.curseforge-id || '' }}
+          curseforge-token: ${{ inputs.publish-curseforge && secrets.CURSEFORGE_TOKEN || '' }}

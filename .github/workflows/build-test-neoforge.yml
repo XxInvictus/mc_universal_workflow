@@ -1,0 +1,43 @@
+name: 2. ExampleMod Build/Test - NeoForge
+run-name: "2. [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}"
+on:
+  push:
+    branches:
+      - 1.20.1-neoforge
+      - 1.21.1-neoforge
+  pull_request:
+    branches:
+      - 1.20.1-neoforge
+      - 1.21.1-neoforge
+
+jobs:
+  build:
+    name: Build Project
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-build.yml@main
+    with:
+      project-root: .
+      gradle-args: build
+      upload-artifacts: true
+      artifact-name: build-artifacts
+      runs-on: HomeServ
+
+  gradle-test:
+    name: Test Project
+    needs: build
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-test.yml@main
+    with:
+      project-root: .
+      gradle-args: test
+      runs-on: HomeServ
+
+  runtime-test:
+    name: Runtime Test
+    uses: XxInvictus/mc_universal_workflow/.github/workflows/reusable-runtime-test.yml@main
+    with:
+      project-root: .
+      gradle-args: build
+      use-build-artifacts: true
+      artifact-name: build-artifacts
+      cache-mc: github
+      runs-on: HomeServ
+    needs: [build, gradle-test]

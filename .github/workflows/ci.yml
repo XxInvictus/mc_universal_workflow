@@ -1,0 +1,328 @@
+name: 0. CI Validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: Validate scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install test tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y zip unzip binutils jq
+
+      - name: Install yq (pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YQ_VERSION="v4.44.3"
+          ARCH="amd64"
+          OS="linux"
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${OS}_${ARCH}" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Bash syntax check
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n scripts/quick-detect.sh
+          bash -n scripts/extract-properties.sh
+          bash -n scripts/compute-artifact-path.sh
+          bash -n scripts/validate-artifact-path.sh
+          bash -n scripts/validate-artifacts.sh
+          bash -n scripts/validate-mappings.sh
+          bash -n scripts/validate-gradle-properties.sh
+          bash -n scripts/validate-dependencies-yml.sh
+          bash -n scripts/download-runtime-deps.sh
+          bash -n scripts/prepare-test-env.sh
+          bash -n scripts/health-check.sh
+          bash -n scripts/migration/scan-legacy-gradle-properties.sh
+          bash -n scripts/migration/migrate-legacy-gradle-properties.sh
+          bash -n scripts/tests/quick-detect-test.sh
+          bash -n scripts/tests/extract-properties-test.sh
+          bash -n scripts/tests/artifact-path-test.sh
+          bash -n scripts/tests/validate-artifacts-test.sh
+          bash -n scripts/tests/validate-mappings-test.sh
+          bash -n scripts/tests/validate-gradle-properties-test.sh
+          bash -n scripts/tests/dependencies-yml-test.sh
+          bash -n scripts/tests/download-runtime-deps-test.sh
+          bash -n scripts/tests/prepare-test-env-test.sh
+          bash -n scripts/tests/health-check-test.sh
+          bash -n scripts/tests/migration-helpers-test.sh
+          bash -n scripts/tests/mojang-version-manifest-test.sh
+          bash -n scripts/tests/mc-runtime-test-assets-test.sh
+
+      - name: Run script tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/tests/quick-detect-test.sh
+          bash scripts/tests/extract-properties-test.sh
+          bash scripts/tests/artifact-path-test.sh
+          bash scripts/tests/validate-artifacts-test.sh
+          bash scripts/tests/validate-mappings-test.sh
+          bash scripts/tests/validate-gradle-properties-test.sh
+          bash scripts/tests/dependencies-yml-test.sh
+          bash scripts/tests/download-runtime-deps-test.sh
+          bash scripts/tests/prepare-test-env-test.sh
+          bash scripts/tests/health-check-test.sh
+          bash scripts/tests/migration-helpers-test.sh
+          bash scripts/tests/mojang-version-manifest-test.sh
+          bash scripts/tests/mc-runtime-test-assets-test.sh
+
+  composite-action:
+    name: Validate composite action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install test tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -y
+          sudo apt-get install -y zip unzip binutils jq
+
+      - name: Install yq (pinned)
+        shell: bash
+        run: |
+          set -euo pipefail
+          YQ_VERSION="v4.44.3"
+          ARCH="amd64"
+          OS="linux"
+          sudo wget -q "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${OS}_${ARCH}" -O /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Create fixture project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fixture
+          cat > fixture/gradle.properties <<'EOF'
+          minecraft_version=1.21.1
+          mod_id=examplemod
+          mod_version=0.1.0
+          loader_multi=false
+          loader_type=forge
+          java_version=21
+          EOF
+
+          mkdir -p fixture/build/libs fixture/META-INF fixture/markers
+          cat > fixture/META-INF/MANIFEST.MF <<'EOF'
+          Manifest-Version: 1.0
+          EOF
+
+          cat > fixture/META-INF/mods.toml <<'EOF'
+          modLoader="javafml"
+          loaderVersion="[1,)"
+          license="MIT"
+          [[mods]]
+          modId="examplemod"
+          version="0.1.0"
+          EOF
+
+          # Add SRG marker strings so validate-mappings detects Forge as SRG.
+          for i in $(seq 1 50); do
+            echo "func_1234_a" >> fixture/markers/srg.txt
+            echo "field_5678_b" >> fixture/markers/srg.txt
+          done
+
+          (cd fixture && zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt)
+
+      - name: Run detect-project action
+        id: detect
+        uses: ./.github/actions/detect-project
+        with:
+          project-root: fixture
+
+      - name: Assert outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.detect.outputs.minecraft_version }}" == "1.21.1" ]]
+          [[ "${{ steps.detect.outputs.active_loaders }}" == "forge" ]]
+
+      - name: Run resolve-artifact action (single-loader)
+        id: resolve_single
+        uses: ./.github/actions/resolve-artifact
+        with:
+          project-root: fixture
+
+      - name: Assert resolve-artifact outputs (single-loader)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.resolve_single.outputs.artifact_path }}" == "build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]]
+
+      - name: Run validate-artifacts action (single-loader)
+        id: val_art
+        uses: ./.github/actions/validate-artifacts
+        with:
+          project-root: fixture
+
+      - name: Run validate-mappings action (single-loader)
+        id: val_map
+        uses: ./.github/actions/validate-mappings
+        with:
+          project-root: fixture
+
+      - name: Assert validate-* outputs (single-loader)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.val_art.outputs.validation_status }}" == "pass" ]]
+          [[ "${{ steps.val_map.outputs.validation_status }}" == "pass" ]]
+          [[ "${{ steps.val_map.outputs.mapping_type }}" == "srg" || "${{ steps.val_map.outputs.mapping_type }}" == "mojmap" ]]
+
+      - name: Create multi-loader fixture project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fixture-multi/forge fixture-multi/fabric
+          : > fixture-multi/forge/build.gradle
+          : > fixture-multi/fabric/build.gradle
+          cat > fixture-multi/gradle.properties <<'EOF'
+          minecraft_version=1.21.1
+          mod_id=examplemod
+          mod_version=0.1.0
+          loader_multi=true
+          active_loaders=forge,fabric
+          java_version=21
+          EOF
+
+          # Create minimal, valid forge and fabric jars at the enforced locations.
+          mkdir -p fixture-multi/forge/build/libs fixture-multi/forge/META-INF fixture-multi/forge/markers
+          cat > fixture-multi/forge/META-INF/MANIFEST.MF <<'EOF'
+          Manifest-Version: 1.0
+          EOF
+          cat > fixture-multi/forge/META-INF/mods.toml <<'EOF'
+          modLoader="javafml"
+          loaderVersion="[1,)"
+          license="MIT"
+          [[mods]]
+          modId="examplemod"
+          version="0.1.0"
+          EOF
+          for i in $(seq 1 50); do
+            echo "func_1234_a" >> fixture-multi/forge/markers/srg.txt
+            echo "field_5678_b" >> fixture-multi/forge/markers/srg.txt
+          done
+          (cd fixture-multi/forge && zip -q "build/libs/examplemod-forge-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF META-INF/mods.toml markers/srg.txt)
+
+          mkdir -p fixture-multi/fabric/build/libs fixture-multi/fabric/META-INF fixture-multi/fabric/markers
+          cat > fixture-multi/fabric/META-INF/MANIFEST.MF <<'EOF'
+          Manifest-Version: 1.0
+          EOF
+          cat > fixture-multi/fabric/fabric.mod.json <<'EOF'
+          {"schemaVersion":1,"id":"examplemod","version":"0.1.0","name":"Example Mod"}
+          EOF
+          for i in $(seq 1 50); do
+            echo "class_1234" >> fixture-multi/fabric/markers/inter.txt
+            echo "method_5678" >> fixture-multi/fabric/markers/inter.txt
+          done
+          (cd fixture-multi/fabric && zip -q "build/libs/examplemod-fabric-1.21.1-0.1.0.jar" META-INF/MANIFEST.MF fabric.mod.json markers/inter.txt)
+
+      - name: Run resolve-artifact action (multi-loader)
+        id: resolve_multi
+        uses: ./.github/actions/resolve-artifact
+        with:
+          project-root: fixture-multi
+          loader: forge
+
+      - name: Assert resolve-artifact outputs (multi-loader)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.resolve_multi.outputs.artifact_path }}" == "forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]]
+
+      - name: Validate multi-loader artifacts and mappings
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/validate-artifacts.sh --project-root fixture-multi --loader forge
+          bash scripts/validate-mappings.sh --project-root fixture-multi --loader forge
+          bash scripts/validate-artifacts.sh --project-root fixture-multi --loader fabric
+          bash scripts/validate-mappings.sh --project-root fixture-multi --loader fabric
+
+      - name: Create dependencies.yml fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > fixture/dependencies.yml <<'EOF'
+          version: "1.0"
+          settings:
+            auto_resolve_latest: false
+          dependencies:
+            runtime: []
+          EOF
+
+      - name: Run validate-dependencies action
+        id: deps
+        uses: ./.github/actions/validate-dependencies
+        with:
+          project-root: fixture
+
+      - name: Assert validate-dependencies outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.deps.outputs.dependencies_present }}" == "true" ]]
+
+      - name: Create fixture without dependencies.yml
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fixture-no-deps
+          cat > fixture-no-deps/gradle.properties <<'EOF'
+          minecraft_version=1.21.1
+          mod_id=examplemod
+          mod_version=0.1.0
+          loader_multi=false
+          loader_type=forge
+          java_version=21
+          EOF
+
+      - name: Run validate-dependencies action (missing file)
+        id: deps_missing
+        uses: ./.github/actions/validate-dependencies
+        with:
+          project-root: fixture-no-deps
+
+      - name: Assert validate-dependencies outputs (missing file)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.deps_missing.outputs.dependencies_present }}" == "false" ]]
+
+      - name: Run prepare-test-env action
+        id: prep
+        uses: ./.github/actions/prepare-test-env
+        with:
+          project-root: fixture
+
+      - name: Assert prepare-test-env outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.prep.outputs.test_dir }}" == "run" ]]
+          [[ "${{ steps.prep.outputs.mod_dir }}" == "run/mods" ]]
+          [[ "${{ steps.prep.outputs.loader_type }}" == "forge" ]]
+          [[ "${{ steps.prep.outputs.minecraft_version }}" == "1.21.1" ]]
+          [[ -f "run/mods/examplemod-forge-1.21.1-0.1.0.jar" ]]
