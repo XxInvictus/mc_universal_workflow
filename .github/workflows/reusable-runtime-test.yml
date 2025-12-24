@@ -220,4 +220,3 @@ jobs:
           java-version: ${{ needs.detect.outputs.java_version }}
           cache-mc: ${{ inputs.cache-mc }}
           fabric-api-version: ${{ steps.fabric_api.outputs.fabric_api_version }}
-          needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}

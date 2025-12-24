@@ -31,10 +31,6 @@ inputs:
     description: Cache strategy for .minecraft folder (github|blacksmith|true|false)
     required: false
     default: 'github'
-  needs-vanilla-cleanup:
-    description: If true, deletes $HOME/.minecraft/versions after the test
-    required: false
-    default: 'false'
 
 outputs:
   status:
@@ -49,6 +45,15 @@ runs:
       run: |
         set -euo pipefail
         mkdir -p "$HOME/.minecraft"
+
+    - name: Reset Minecraft versions cache
+      shell: bash
+      run: |
+        set -euo pipefail
+        # This workflow assumes an ephemeral runtime-test environment.
+        # To avoid cross-run cache bleed or partial/corrupt loader profiles,
+        # always start from a clean versions directory.
+        rm -rf "$HOME/.minecraft/versions"
 
     - name: Derive mc-runtime-test type
       id: mcrt
@@ -95,52 +100,6 @@ runs:
             exit 1
           fi
         fi
-
-    - name: Guard against stale vanilla-only version cache
-      shell: bash
-      run: |
-        set -euo pipefail
-        mc="${{ inputs.minecraft-version }}"
-        loader="${{ inputs.loader-type }}"
-        vanilla_json="$HOME/.minecraft/versions/${mc}/${mc}.json"
-
-        if [[ ! -f "$vanilla_json" ]]; then
-          exit 0
-        fi
-
-        # headlesshq/mc-runtime-test only runs the HeadlessMC download/install commands
-        # when the vanilla JSON is missing. If the vanilla JSON exists but the loader
-        # profile doesn't, force the action to re-run download/install.
-        case "$loader" in
-          fabric)
-            shopt -s nullglob
-            candidates=("$HOME/.minecraft/versions/fabric-loader-"*"-${mc}")
-            if [[ ${#candidates[@]} -eq 0 ]]; then
-              echo "Detected vanilla version JSON but no Fabric loader profile; forcing re-download/install" >&2
-              rm -f "$vanilla_json"
-            fi
-            ;;
-          forge)
-            shopt -s nullglob
-            candidates=("$HOME/.minecraft/versions/forge-"*"-${mc}")
-            if [[ ${#candidates[@]} -eq 0 ]]; then
-              echo "Detected vanilla version JSON but no Forge loader profile; forcing re-download/install" >&2
-              rm -f "$vanilla_json"
-            fi
-            ;;
-          neoforge)
-            shopt -s nullglob
-            candidates=("$HOME/.minecraft/versions/neoforge-"*"-${mc}")
-            if [[ ${#candidates[@]} -eq 0 ]]; then
-              echo "Detected vanilla version JSON but no NeoForge loader profile; forcing re-download/install" >&2
-              rm -f "$vanilla_json"
-            fi
-            ;;
-          *)
-            echo "ERROR: unsupported loader-type=${loader}" >&2
-            exit 1
-            ;;
-        esac
 
     - name: Validate mc-runtime-test asset exists (pinned release)
       shell: bash
@@ -200,7 +159,7 @@ runs:
         cache-mc: ${{ inputs.cache-mc }}
 
     - name: Cleanup .minecraft/versions
-      if: always() && inputs.needs-vanilla-cleanup == 'true'
+      if: always()
       shell: bash
       run: |
         set -euo pipefail
