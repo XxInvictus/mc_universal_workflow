@@ -9,3 +9,4 @@ jobs:
     with:
       project-root: .
       gradle-args: test
+      runs-on: ubuntu-latest

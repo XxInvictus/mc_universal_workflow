@@ -8,5 +8,10 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+
+      # Optional (same-run artifact handoff): download jars and skip Gradle build.
+      # use-build-artifacts: true
+      # artifact-name: build-artifacts
+
       cache-mc: github
       runs-on: self-hosted

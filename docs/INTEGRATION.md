@@ -86,6 +86,7 @@ Templates:
 - `test.yml`
 - `release.yml`
 - `runtime-test.yml`
+- `build-test-runtime-test.yml` (combined: build + test + runtime test with same-run artifact handoff)
 
 Then update the `uses:` reference to point to the exact ref you want (branch, tag, or commit SHA).
 
@@ -149,6 +150,15 @@ This repo’s prep logic stages:
 
 > [!WARNING]
 > Runtime testing is intended for self-hosted runners. It can take several minutes and download/cache large Minecraft assets; running it on GitHub-hosted runners may incur unexpected costs.
+
+Notes:
+
+- Reusable workflows in this repo enable Gradle caching via `gradle/actions/setup-gradle@v4`.
+- If you chain jobs within a single workflow run, you can avoid a second build by using the optional artifact handoff:
+  - In the build job: set `upload-artifacts: true`.
+  - In the runtime-test job: set `use-build-artifacts: true`.
+  - Use the same `artifact-name` in both jobs.
+  - When `use-build-artifacts: true`, `gradle-args` is ignored (the Gradle build step is skipped).
 
 ## 6) Optional `dependencies.yml` (runtime-only dependency downloads)
 

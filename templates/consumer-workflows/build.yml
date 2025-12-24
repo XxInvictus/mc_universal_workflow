@@ -9,3 +9,8 @@ jobs:
     with:
       project-root: .
       gradle-args: build
+      runs-on: ubuntu-latest
+
+      # Optional (same-run artifact handoff): upload jars for later jobs.
+      # upload-artifacts: true
+      # artifact-name: build-artifacts

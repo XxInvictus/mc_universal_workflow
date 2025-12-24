@@ -2,6 +2,16 @@
 
 Reusable GitHub Actions workflows + composite actions for building, testing, releasing, and runtime-testing Minecraft mods under a strict, migration-only contract.
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)  
+
+| CI | 1.20.1 | 1.21.1 |
+| :---: | :---: | :---: |
+| [![CI Test](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/ci.yml) | - | - |
+| - | [![Forge](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml/badge.svg?branch=1.20.1-forge)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml) | [![Forge](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml/badge.svg?branch=1.21.1-forge)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml) |
+| - | [![Fabric](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-fabric.yml/badge.svg?branch=1.20.1-fabric)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-fabric.yml) | [![Fabric](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-fabric.yml/badge.svg?branch=1.21.1-fabric)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-fabric.yml) |
+| - | - | [![NeoForge](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-neoforge.yml/badge.svg?branch=1.21.1-neoforge)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-neoforge.yml) |
+| - | [![Multiloader](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-multiloader.yml/badge.svg?branch=1.20.1-multiloader)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-multiloader.yml) | [![Multiloader](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-multiloader.yml/badge.svg?branch=1.21.1-multiloader)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-multiloader.yml) |
+
 ## Contract (non-negotiable)
 
 - Branch-per-version: one Minecraft version per branch (no in-branch MC version matrix).
@@ -63,6 +73,10 @@ jobs:
       project-root: .
       gradle-args: build
       runs-on: ubuntu-latest
+
+      # Optional (same-run artifact handoff): upload jars for later jobs.
+      upload-artifacts: false
+      artifact-name: build-artifacts
 ```
 
 ### Test
@@ -144,6 +158,15 @@ jobs:
       gradle-args: build
       cache-mc: github
       runs-on: self-hosted
+
+      # Optional (same-run artifact handoff): download jars and skip Gradle build.
+      use-build-artifacts: false
+      artifact-name: build-artifacts
+
+Notes:
+
+- Reusable build/test/release/runtime-test workflows enable Gradle caching via `gradle/actions/setup-gradle@v4`.
+- Artifact handoff is only meant for jobs within the same workflow run (build uploads -> runtime-test downloads).
 ```
 
 ## Optional `dependencies.yml`
@@ -169,6 +192,7 @@ Schema and examples: [build_docs/DEPENDENCIES_YML_SCHEMA.md](build_docs/DEPENDEN
 Templates:
 
 - [templates/consumer-workflows](templates/consumer-workflows)
+- [templates/consumer-workflows/build-test-runtime-test.yml](templates/consumer-workflows/build-test-runtime-test.yml)
 - [templates/gradle.properties.single.properties](templates/gradle.properties.single.properties)
 - [templates/gradle.properties.multi.properties](templates/gradle.properties.multi.properties)
 - [templates/dependencies.yml](templates/dependencies.yml)

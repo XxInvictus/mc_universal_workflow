@@ -133,6 +133,9 @@ jobs:
           distribution: temurin
           java-version: ${{ steps.detect.outputs.java_version }}
 
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Install validation tools
         uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
         with:
