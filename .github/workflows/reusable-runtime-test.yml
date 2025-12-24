@@ -18,6 +18,16 @@ on:
         required: false
         type: string
         default: build
+      use-build-artifacts:
+        description: Download build artifacts and skip the Gradle build step (same-run handoff)
+        required: false
+        type: boolean
+        default: false
+      artifact-name:
+        description: Artifact name to download (used when use-build-artifacts=true)
+        required: false
+        type: string
+        default: build-artifacts
       cache-mc:
         description: Cache strategy for .minecraft (github|blacksmith|true|false)
         required: false
@@ -111,6 +121,9 @@ jobs:
           distribution: temurin
           java-version: ${{ needs.detect.outputs.java_version }}
 
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Install validation tools
         shell: bash
         run: |
@@ -129,7 +142,15 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
           yq --version
 
+      - name: Download build artifacts (optional)
+        if: ${{ inputs.use-build-artifacts }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: .
+
       - name: Build (Gradle)
+        if: ${{ !inputs.use-build-artifacts }}
         shell: bash
         working-directory: ${{ inputs.project-root }}
         run: |
@@ -220,4 +241,3 @@ jobs:
           java-version: ${{ needs.detect.outputs.java_version }}
           cache-mc: ${{ inputs.cache-mc }}
           fabric-api-version: ${{ steps.fabric_api.outputs.fabric_api_version }}
-          needs-vanilla-cleanup: ${{ needs.detect.outputs.loader_multi }}
