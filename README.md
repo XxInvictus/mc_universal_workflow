@@ -4,7 +4,7 @@ Reusable GitHub Actions workflows + composite actions for building, testing, rel
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)  
 
-| CI | 1.20.1 | 1.21.1 |
+| CI | 1.20.X | 1.21.X |
 | :---: | :---: | :---: |
 | [![CI Test](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/ci.yml) | - | - |
 | - | [![Forge](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml/badge.svg?branch=1.20.1-forge)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml) | [![Forge](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml/badge.svg?branch=1.21.1-forge)](https://github.com/XxInvictus/mc_universal_workflow/actions/workflows/build-test-forge.yml) |
