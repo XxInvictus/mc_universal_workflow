@@ -1,0 +1,68 @@
+name: 1. Reusable - Test
+
+on:
+  workflow_call:
+    inputs:
+      project-root:
+        description: Project root directory
+        required: false
+        type: string
+        default: .
+      java-version:
+        description: Java version for Gradle
+        required: false
+        type: string
+        default: '21'
+      gradle-args:
+        description: Gradle arguments (tasks + flags)
+        required: false
+        type: string
+        default: test
+      runs-on:
+        description: Runner label (ubuntu-latest or self-hosted label)
+        required: false
+        type: string
+        default: ubuntu-latest
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ${{ inputs.runs-on }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect project configuration
+        id: detect
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.detect.outputs.java_version }}
+
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate optional dependencies.yml
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
+        with:
+          project-root: ${{ inputs.project-root }}
+
+      - name: Run tests (Gradle)
+        shell: bash
+        working-directory: ${{ inputs.project-root }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "./gradlew" ]]; then
+            echo "ERROR: gradlew not found at project root" >&2
+            exit 1
+          fi
+          chmod +x ./gradlew
+          ./gradlew ${{ inputs.gradle-args }}
