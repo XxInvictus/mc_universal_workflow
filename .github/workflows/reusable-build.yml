@@ -18,6 +18,16 @@ on:
         required: false
         type: string
         default: build
+      upload-artifacts:
+        description: Upload built jar(s) as a workflow artifact (for same-run handoff)
+        required: false
+        type: boolean
+        default: false
+      artifact-name:
+        description: Artifact name to upload under (used when upload-artifacts=true)
+        required: false
+        type: string
+        default: build-artifacts
       runs-on:
         description: Runner label (ubuntu-latest or self-hosted label)
         required: false
@@ -81,6 +91,9 @@ jobs:
         with:
           distribution: temurin
           java-version: ${{ steps.detect.outputs.java_version }}
+
+      - name: Setup Gradle (cache)
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Validate optional dependencies.yml
         id: deps
@@ -191,3 +204,12 @@ jobs:
             printf '%s' "$artifact_paths"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts (optional)
+        if: ${{ inputs.upload-artifacts }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            ${{ inputs.project-root }}/${{ steps.artifacts.outputs.artifact_paths }}
+          if-no-files-found: error
