@@ -211,6 +211,7 @@ jobs:
           active_loaders="${{ steps.detect.outputs.active_loaders }}"
 
           artifact_paths=""
+          artifact_paths_workspace=""
 
           if [[ "$loader_multi" == "true" ]]; then
             IFS=',' read -r -a loaders <<< "$active_loaders"
@@ -225,6 +226,7 @@ jobs:
                 exit 1
               fi
               artifact_paths+="${out_path}"$'\n'
+              artifact_paths_workspace+="${project_root%/}/${out_path}"$'\n'
             done
           else
             out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
@@ -237,20 +239,33 @@ jobs:
               exit 1
             fi
             artifact_paths+="${out_path}"$'\n'
+            artifact_paths_workspace+="${project_root%/}/${out_path}"$'\n'
           fi
 
           {
             echo 'artifact_paths<<EOF'
             printf '%s' "$artifact_paths"
             echo 'EOF'
+            echo 'artifact_paths_workspace<<EOF'
+            printf '%s' "$artifact_paths_workspace"
+            echo 'EOF'
           } >> "$GITHUB_OUTPUT"
+
+      - name: Create artifact root marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker_path="${{ inputs.project-root }}/.mc_universal_workflow_artifact_root"
+          mkdir -p "$(dirname "$marker_path")"
+          printf 'artifact-root\n' > "$marker_path"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
-            ${{ inputs.project-root }}/${{ steps.artifacts.outputs.artifact_paths }}
+            ${{ inputs.project-root }}/.mc_universal_workflow_artifact_root
+            ${{ steps.artifacts.outputs.artifact_paths_workspace }}
           if-no-files-found: error
 
   publish:
