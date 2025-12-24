@@ -160,7 +160,7 @@ jobs:
           set -euo pipefail
           # Note: upload-artifact stores files relative to the common ancestor (single-fixture/).
           # When downloading into '.', the single-fixture/ prefix is not preserved.
-          [[ -f "./.mc_universal_workflow_artifact_root" ]] || { echo "ERROR: expected marker not restored at artifact root" >&2; exit 1; }
+          # Also: the marker is a hidden dotfile; upload-artifact does not include hidden files by default.
           [[ -f "build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected jar not restored under build/libs" >&2; exit 1; }
 
           # Regression check: the jar should not be flattened into workspace root.
