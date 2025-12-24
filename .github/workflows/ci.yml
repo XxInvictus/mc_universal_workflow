@@ -85,6 +85,130 @@ jobs:
           bash scripts/tests/mojang-version-manifest-test.sh
           bash scripts/tests/mc-runtime-test-assets-test.sh
 
+  artifact-handoff:
+    name: Validate artifact upload/download paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create single-loader fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf single-fixture
+          mkdir -p single-fixture/build/libs
+
+          # Simulate a built jar at the enforced single-loader location.
+          printf 'dummy-jar\n' > single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+
+          # Marker used to force upload-artifact's common ancestor to be project root.
+          printf 'artifact-root\n' > single-fixture/.mc_universal_workflow_artifact_root
+
+      - name: Upload single-loader artifact set
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifact-handoff-single
+          path: |
+            single-fixture/.mc_universal_workflow_artifact_root
+            single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+          if-no-files-found: error
+
+      - name: Create multi-loader fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf multi-fixture
+          mkdir -p multi-fixture/forge/build/libs multi-fixture/fabric/build/libs
+
+          printf 'dummy-jar\n' > multi-fixture/forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+          printf 'dummy-jar\n' > multi-fixture/fabric/build/libs/examplemod-fabric-1.21.1-0.1.0.jar
+
+          # Same marker strategy for multi-loader.
+          printf 'artifact-root\n' > multi-fixture/.mc_universal_workflow_artifact_root
+
+      - name: Upload multi-loader artifact set
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifact-handoff-multi
+          path: |
+            multi-fixture/.mc_universal_workflow_artifact_root
+            multi-fixture/forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+            multi-fixture/fabric/build/libs/examplemod-fabric-1.21.1-0.1.0.jar
+          if-no-files-found: error
+
+      - name: Wipe fixtures before download
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf single-fixture multi-fixture
+          rm -f ./*.jar || true
+
+      - name: Download single-loader artifact set
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-artifact-handoff-single
+          path: .
+
+      - name: Assert single-loader restore path
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -f "single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected jar not restored under single-fixture/build/libs" >&2; exit 1; }
+
+          # Regression check: the jar should not be flattened into workspace root.
+          [[ ! -f "./examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: jar was flattened into workspace root" >&2; exit 1; }
+
+      - name: Download multi-loader artifact set
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-artifact-handoff-multi
+          path: .
+
+      - name: Assert multi-loader restore paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -f "multi-fixture/forge/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected forge jar not restored under multi-fixture/forge/build/libs" >&2; exit 1; }
+          [[ -f "multi-fixture/fabric/build/libs/examplemod-fabric-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected fabric jar not restored under multi-fixture/fabric/build/libs" >&2; exit 1; }
+
+      - name: "Create single-loader fixture (known-broken: no marker)"
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf broken-single-fixture
+          mkdir -p broken-single-fixture/build/libs
+
+          # Simulate a built jar at the enforced single-loader location.
+          printf 'dummy-jar\n' > broken-single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+
+      - name: "Upload single-loader artifact set (known-broken: no marker)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifact-handoff-single-broken
+          path: |
+            broken-single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar
+          if-no-files-found: error
+
+      - name: "Download single-loader artifact set (known-broken: no marker)"
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-artifact-handoff-single-broken
+          path: broken-download
+
+      - name: Assert known-broken restore behavior (single-loader)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Without the marker file, upload-artifact picks build/libs as the common ancestor,
+          # so the jar is stored at the artifact root and restores flattened.
+          [[ -f "broken-download/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: expected flattened jar at broken-download/ (known-broken behavior)" >&2; exit 1; }
+          [[ ! -f "broken-download/broken-single-fixture/build/libs/examplemod-forge-1.21.1-0.1.0.jar" ]] || { echo "ERROR: jar unexpectedly preserved directory structure in known-broken case" >&2; exit 1; }
+
   composite-action:
     name: Validate composite action
     runs-on: ubuntu-latest

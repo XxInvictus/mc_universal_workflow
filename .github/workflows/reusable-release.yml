@@ -70,7 +70,6 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     outputs:
       artifact_paths: ${{ steps.artifacts.outputs.artifact_paths }}
-      artifact_paths_workspace: ${{ steps.artifacts.outputs.artifact_paths_workspace }}
       minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
       mod_id: ${{ steps.detect.outputs.mod_id }}
       mod_version: ${{ steps.detect.outputs.mod_version }}
@@ -252,11 +251,20 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
+      - name: Create artifact root marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker_path="${{ inputs.project-root }}/.mc_universal_workflow_artifact_root"
+          mkdir -p "$(dirname "$marker_path")"
+          printf 'artifact-root\n' > "$marker_path"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: |
+            ${{ inputs.project-root }}/.mc_universal_workflow_artifact_root
             ${{ steps.artifacts.outputs.artifact_paths_workspace }}
           if-no-files-found: error
 
@@ -363,7 +371,7 @@ jobs:
           github-commitish: ${{ github.sha }}
 
           files: |
-            dist/${{ needs.build.outputs.artifact_paths_workspace }}
+            dist/${{ needs.build.outputs.artifact_paths }}
 
           name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
           version: ${{ needs.build.outputs.release_tag }}
@@ -386,7 +394,7 @@ jobs:
         uses: Kir-Antipov/mc-publish@v3
         with:
           files: |
-            dist/${{ needs.build.outputs.artifact_paths_workspace }}
+            dist/${{ needs.build.outputs.artifact_paths }}
 
           name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
           version: ${{ needs.build.outputs.release_tag }}

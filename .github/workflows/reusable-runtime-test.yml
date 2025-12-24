@@ -147,7 +147,44 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          path: ${{ github.workspace }}
+          path: .
+
+      - name: Diagnostics (artifact handoff)
+        if: ${{ inputs.use-build-artifacts && runner.debug == '1' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          project_root="${{ inputs.project-root }}"
+
+          echo "=== Artifact handoff diagnostics ===" >&2
+          echo "pwd=$(pwd)" >&2
+          echo "github.workspace=${GITHUB_WORKSPACE}" >&2
+          echo "project_root=${project_root}" >&2
+          echo "loader=${{ matrix.loader }}" >&2
+
+          echo "--- Workspace root listing ---" >&2
+          ls -la "${GITHUB_WORKSPACE}" >&2 || true
+
+          echo "--- Project root listing ---" >&2
+          ls -la "${GITHUB_WORKSPACE%/}/${project_root}" >&2 || true
+
+          echo "--- Expected single-loader output dir (project_root/build/libs) ---" >&2
+          ls -la "${GITHUB_WORKSPACE%/}/${project_root%/}/build/libs" >&2 || true
+
+          echo "--- Common mistake check: jars restored to workspace root ---" >&2
+          ls -la "${GITHUB_WORKSPACE}"/*.jar >&2 || true
+
+          echo "--- Search for jars under project root (maxdepth=6) ---" >&2
+          find "${GITHUB_WORKSPACE%/}/${project_root%/}" -maxdepth 6 -type f -name '*.jar' -print >&2 || true
+
+          echo "--- Artifact root marker (if present) ---" >&2
+          if [[ -f "${GITHUB_WORKSPACE%/}/${project_root%/}/.mc_universal_workflow_artifact_root" ]]; then
+            echo "marker_present=true" >&2
+            ls -la "${GITHUB_WORKSPACE%/}/${project_root%/}/.mc_universal_workflow_artifact_root" >&2 || true
+          else
+            echo "marker_present=false" >&2
+          fi
 
       - name: Build (Gradle)
         if: ${{ !inputs.use-build-artifacts }}
