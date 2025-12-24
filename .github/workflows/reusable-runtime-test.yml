@@ -147,7 +147,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.artifact-name }}
-          path: .
+          path: ${{ github.workspace }}
 
       - name: Build (Gradle)
         if: ${{ !inputs.use-build-artifacts }}

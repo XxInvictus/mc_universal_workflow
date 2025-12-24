@@ -70,6 +70,7 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     outputs:
       artifact_paths: ${{ steps.artifacts.outputs.artifact_paths }}
+      artifact_paths_workspace: ${{ steps.artifacts.outputs.artifact_paths_workspace }}
       minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
       mod_id: ${{ steps.detect.outputs.mod_id }}
       mod_version: ${{ steps.detect.outputs.mod_version }}
@@ -211,6 +212,7 @@ jobs:
           active_loaders="${{ steps.detect.outputs.active_loaders }}"
 
           artifact_paths=""
+          artifact_paths_workspace=""
 
           if [[ "$loader_multi" == "true" ]]; then
             IFS=',' read -r -a loaders <<< "$active_loaders"
@@ -225,6 +227,7 @@ jobs:
                 exit 1
               fi
               artifact_paths+="${out_path}"$'\n'
+              artifact_paths_workspace+="${project_root%/}/${out_path}"$'\n'
             done
           else
             out_path="$(bash ./.mc_universal_workflow/scripts/compute-artifact-path.sh --project-root "$project_root" | sed -n 's/^artifact_path=//p' | head -n 1)"
@@ -237,11 +240,15 @@ jobs:
               exit 1
             fi
             artifact_paths+="${out_path}"$'\n'
+            artifact_paths_workspace+="${project_root%/}/${out_path}"$'\n'
           fi
 
           {
             echo 'artifact_paths<<EOF'
             printf '%s' "$artifact_paths"
+            echo 'EOF'
+            echo 'artifact_paths_workspace<<EOF'
+            printf '%s' "$artifact_paths_workspace"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
@@ -250,7 +257,7 @@ jobs:
         with:
           name: build-artifacts
           path: |
-            ${{ inputs.project-root }}/${{ steps.artifacts.outputs.artifact_paths }}
+            ${{ steps.artifacts.outputs.artifact_paths_workspace }}
           if-no-files-found: error
 
   publish:
@@ -356,7 +363,7 @@ jobs:
           github-commitish: ${{ github.sha }}
 
           files: |
-            dist/${{ needs.build.outputs.artifact_paths }}
+            dist/${{ needs.build.outputs.artifact_paths_workspace }}
 
           name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
           version: ${{ needs.build.outputs.release_tag }}
@@ -379,7 +386,7 @@ jobs:
         uses: Kir-Antipov/mc-publish@v3
         with:
           files: |
-            dist/${{ needs.build.outputs.artifact_paths }}
+            dist/${{ needs.build.outputs.artifact_paths_workspace }}
 
           name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
           version: ${{ needs.build.outputs.release_tag }}
