@@ -3,10 +3,10 @@ run-name: "2. [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}
 on:
   push:
     branches:
-      - *-forge
+      - '*-forge'
   pull_request:
     branches:
-      - *-forge
+      - '*-forge'
 
 jobs:
   build:

@@ -3,10 +3,10 @@ run-name: "2. [${{ github.ref_name }}] - ${{ github.event.head_commit.message }}
 on:
   push:
     branches:
-      - *-fabric
+      - '*-fabric'
   pull_request:
     branches:
-      - *-fabric
+      - '*-fabric'
 
 jobs:
   build:
