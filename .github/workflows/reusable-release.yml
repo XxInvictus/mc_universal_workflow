@@ -8,11 +8,6 @@ on:
         required: false
         type: string
         default: .
-      java-version:
-        description: Java version for Gradle
-        required: false
-        type: string
-        default: '21'
       gradle-args:
         description: Gradle arguments (tasks + flags)
         required: false
@@ -277,7 +272,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
+          name: ${{ steps.release_meta.outputs.release_tag }}
           path: |
             ${{ inputs.project-root }}/.mc_universal_workflow_artifact_root
             ${{ steps.artifacts.outputs.artifact_paths_workspace }}
@@ -341,7 +336,7 @@ jobs:
       - name: Download built artifacts
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts
+          name: ${{ needs.build.outputs.release_tag }}
           path: dist
 
       - name: Find previous release tag (same Minecraft version)

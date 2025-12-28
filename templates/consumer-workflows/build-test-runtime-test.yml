@@ -13,7 +13,7 @@ jobs:
 
       # Same-run artifact handoff: upload jars for later jobs.
       upload-artifacts: true
-      artifact-name: build-artifacts
+      # artifact-name: 1.21.1-0.1.0  # Optional override; defaults to ${minecraft_version}-${mod_version}
 
   test:
     needs: build
@@ -31,7 +31,7 @@ jobs:
 
       # Same-run artifact handoff: download jars and skip Gradle build.
       use-build-artifacts: true
-      artifact-name: build-artifacts
+      # artifact-name: 1.21.1-0.1.0  # Optional override; defaults to ${minecraft_version}-${mod_version}
 
       # Still required for the workflow interface, but ignored when use-build-artifacts=true.
       gradle-args: build

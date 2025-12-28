@@ -8,11 +8,6 @@ on:
         required: false
         type: string
         default: .
-      java-version:
-        description: Java version for Gradle
-        required: false
-        type: string
-        default: '21'
       gradle-args:
         description: Gradle arguments (tasks + flags)
         required: false

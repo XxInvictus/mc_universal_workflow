@@ -184,6 +184,7 @@ Notes:
   - In the build job: set `upload-artifacts: true`.
   - In the runtime-test job: set `use-build-artifacts: true`.
   - Use the same `artifact-name` in both jobs.
+  - If `artifact-name` is omitted, the default is `${minecraft_version}-${mod_version}`.
   - When `use-build-artifacts: true`, `gradle-args` is ignored (the Gradle build step is skipped).
 
 ## 6) Optional `dependencies.yml` (runtime-only dependency downloads)

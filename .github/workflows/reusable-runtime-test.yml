@@ -8,11 +8,6 @@ on:
         required: false
         type: string
         default: .
-      java-version:
-        description: Java version for mc-runtime-test
-        required: false
-        type: string
-        default: '21'
       gradle-args:
         description: Gradle arguments (tasks + flags) to build artifacts before runtime test
         required: false
@@ -27,7 +22,7 @@ on:
         description: Artifact name to download (used when use-build-artifacts=true)
         required: false
         type: string
-        default: build-artifacts
+        default: ''
       cache-mc:
         description: Cache strategy for .minecraft (github|blacksmith|true|false)
         required: false
@@ -58,9 +53,11 @@ jobs:
     runs-on: ${{ inputs.runs-on }}
     outputs:
       minecraft_version: ${{ steps.detect.outputs.minecraft_version }}
+      mod_version: ${{ steps.detect.outputs.mod_version }}
       java_version: ${{ steps.detect.outputs.java_version }}
       loader_multi: ${{ steps.detect.outputs.loader_multi }}
       loaders_json: ${{ steps.loaders.outputs.loaders_json }}
+      artifact_name: ${{ steps.artifact_name.outputs.artifact_name }}
     steps:
       - name: Checkout (caller repo)
         uses: actions/checkout@v4
@@ -70,6 +67,21 @@ jobs:
         uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
         with:
           project-root: ${{ inputs.project-root }}
+
+      - name: Compute artifact name
+        id: artifact_name
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          requested='${{ inputs.artifact-name }}'
+          if [[ -n "$requested" ]]; then
+            effective="$requested"
+          else
+            effective='${{ steps.detect.outputs.minecraft_version }}-${{ steps.detect.outputs.mod_version }}'
+          fi
+
+          echo "artifact_name=${effective}" >> "$GITHUB_OUTPUT"
 
       - name: Compute loaders matrix
         id: loaders
@@ -151,7 +163,7 @@ jobs:
         if: ${{ inputs.use-build-artifacts }}
         uses: actions/download-artifact@v4
         with:
-          name: ${{ inputs.artifact-name }}
+          name: ${{ needs.detect.outputs.artifact_name }}
           path: .
 
       - name: Diagnostics (artifact handoff)
