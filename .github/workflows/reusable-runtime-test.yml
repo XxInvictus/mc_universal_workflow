@@ -38,6 +38,11 @@ on:
         required: false
         type: string
         default: none
+      runtime-deps-mode:
+        description: Runtime deps source mode (dependencies-yml|metadata-min|metadata-max|none)
+        required: false
+        type: string
+        default: dependencies-yml
       runs-on:
         description: Runner label (ubuntu-latest or self-hosted label)
         required: false
@@ -57,7 +62,7 @@ jobs:
       loader_multi: ${{ steps.detect.outputs.loader_multi }}
       loaders_json: ${{ steps.loaders.outputs.loaders_json }}
     steps:
-      - name: Checkout
+      - name: Checkout (caller repo)
         uses: actions/checkout@v4
 
       - name: Detect project configuration
@@ -112,7 +117,7 @@ jobs:
       matrix:
         loader: ${{ fromJSON(needs.detect.outputs.loaders_json) }}
     steps:
-      - name: Checkout
+      - name: Checkout (caller repo)
         uses: actions/checkout@v4
 
       - name: Setup Java
@@ -129,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -y
-          sudo apt-get install -y unzip binutils jq
+          sudo apt-get install -y unzip binutils jq python3
 
       - name: Install yq (pinned)
         shell: bash
@@ -217,6 +222,7 @@ jobs:
         with:
           project-root: ${{ inputs.project-root }}
           loader: ${{ matrix.loader }}
+          runtime-deps-mode: ${{ inputs.runtime-deps-mode }}
 
       - name: Compute modloader regex
         shell: bash

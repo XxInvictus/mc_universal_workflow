@@ -13,6 +13,15 @@ jobs:
       gradle-args: build
       runs-on: ubuntu-latest
 
+      # Changelog handling:
+      # - Default: changelog-mode: required (requires RELEASE_CHANGELOG.md and validates Keep a Changelog format)
+      #   - Published release notes include only the changes since the last published release tag.
+      # - Optional: changelog-mode: custom (skips validation; default publishes an empty changelog unless custom-changelog-behavior=full)
+      # - Optional: changelog-mode: generated (skips validation; generates a simple changelog if missing)
+      # changelog-mode: required
+      # changelog-path: RELEASE_CHANGELOG.md
+      # custom-changelog-behavior: empty
+
       # Optional publishing (requires secrets/vars in the consumer repo)
       publish-github: true
       publish-modrinth: false

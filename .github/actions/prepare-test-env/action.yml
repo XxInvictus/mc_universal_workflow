@@ -22,6 +22,10 @@ inputs:
     description: If true and dependencies.yml exists, downloads runtime deps into ./run/mods
     required: false
     default: 'true'
+  runtime-deps-mode:
+    description: Runtime deps source mode (dependencies-yml|metadata-min|metadata-max|none)
+    required: false
+    default: dependencies-yml
   clean-run-dir:
     description: If true, clears ./run/mods before staging
     required: false
@@ -69,4 +73,5 @@ runs:
           args+=(--additional-mods "${{ inputs.additional-mods }}")
         fi
         args+=(--download-runtime-deps "${{ inputs.download-runtime-deps }}")
+        args+=(--runtime-deps-mode "${{ inputs.runtime-deps-mode }}")
         bash "${{ github.action_path }}/../../../scripts/prepare-test-env.sh" "${args[@]}" >> "$GITHUB_OUTPUT"

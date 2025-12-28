@@ -96,6 +96,21 @@ All reusable workflows accept a `runs-on` input so you can select the runner lab
 
 The reusable release workflow can optionally publish via `Kir-Antipov/mc-publish`.
 
+Changelog files (default required for publishing):
+
+- Default (`changelog-mode: required`): requires and validates Keep a Changelog format.
+  - `CHANGELOG.md`: full development/technical changelog (Keep a Changelog 1.0.0).
+  - `RELEASE_CHANGELOG.md`: user-facing changelog (also Keep a Changelog 1.0.0); intended to be less technical, but still contains the complete release history. This file is used as the published changelog.
+  - Published release notes contain only the changes since the last published release tag (this can include multiple unreleased intermediate versions).
+- Optional (`changelog-mode: custom`): skips changelog validation and uses your own changelog file (set `changelog-path`).
+- By default, `custom` publishes an empty changelog unless you set `custom-changelog-behavior: full`.
+- Optional (`changelog-mode: generated`): skips changelog validation and, if the file at `changelog-path` is missing, generates a simple templated changelog for the release body.
+
+Use the templates from this repo:
+
+- [templates/CHANGELOG.md](../templates/CHANGELOG.md)
+- [templates/RELEASE_CHANGELOG.md](../templates/RELEASE_CHANGELOG.md)
+
 When publishing is enabled, it creates (or reuses) a tag named:
 
 ```text
@@ -147,6 +162,17 @@ This repo’s prep logic stages:
 - Your built mod jar
 - Optional additional mods
 - Optional downloaded runtime deps from `dependencies.yml`
+
+### Runtime dependency modes
+
+The runtime-test workflow supports selecting how runtime dependencies are sourced:
+
+- `runtime-deps-mode: dependencies-yml` (default): use `dependencies.yml` (pinned, deterministic).
+- `runtime-deps-mode: metadata-min`: read dependency *ranges* from mod metadata and resolve to the earliest matching published artifact per dependency.
+- `runtime-deps-mode: metadata-max`: read dependency *ranges* from mod metadata and resolve to the latest matching published artifact per dependency (rolling compatibility).
+- `runtime-deps-mode: none`: skip runtime dependency downloads.
+
+Metadata-based modes require that dependencies can be mapped to Modrinth/CurseForge project identifiers via mc-publish-style metadata fields; otherwise resolution will fail.
 
 > [!WARNING]
 > Runtime testing is intended for self-hosted runners. It can take several minutes and download/cache large Minecraft assets; running it on GitHub-hosted runners may incur unexpected costs.

@@ -36,5 +36,11 @@ jobs:
       # Still required for the workflow interface, but ignored when use-build-artifacts=true.
       gradle-args: build
 
+      # Optional: choose how runtime dependencies are sourced.
+      # runtime-deps-mode: dependencies-yml  # default
+      # runtime-deps-mode: metadata-min
+      # runtime-deps-mode: metadata-max
+      # runtime-deps-mode: none
+
       cache-mc: github
       runs-on: self-hosted

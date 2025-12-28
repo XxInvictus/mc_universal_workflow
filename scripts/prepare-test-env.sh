@@ -18,6 +18,12 @@ Options:
   --download-runtime-deps <true|false>
                               If true and dependencies.yml exists, downloads runtime deps into ./run/mods
                               (default: true)
+  --runtime-deps-mode <dependencies-yml|metadata-min|metadata-max|none>
+                              Select how runtime deps are sourced:
+                              - dependencies-yml: use project-root/dependencies.yml (default)
+                              - metadata-min: resolve required deps from mod metadata to minimum matching versions
+                              - metadata-max: resolve required deps from mod metadata to maximum matching versions
+                              - none: do not download runtime deps
   --clean-run-dir <true|false>
                               If true, deletes ./run/mods contents before staging (default: true)
   -h, --help                  Show this help
@@ -39,6 +45,7 @@ loader=""
 artifact_path=""
 additional_mods=""
 download_runtime_deps="true"
+runtime_deps_mode="dependencies-yml"
 clean_run_dir="true"
 
 while [[ $# -gt 0 ]]; do
@@ -61,6 +68,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --download-runtime-deps)
       download_runtime_deps="$2"
+      shift 2
+      ;;
+    --runtime-deps-mode)
+      runtime_deps_mode="$2"
       shift 2
       ;;
     --clean-run-dir)
@@ -91,6 +102,14 @@ case "$download_runtime_deps" in
   true|false) ;;
   *)
     echo "ERROR: --download-runtime-deps must be true|false" >&2
+    exit 1
+    ;;
+esac
+
+case "$runtime_deps_mode" in
+  dependencies-yml|metadata-min|metadata-max|none) ;;
+  *)
+    echo "ERROR: --runtime-deps-mode must be one of dependencies-yml|metadata-min|metadata-max|none" >&2
     exit 1
     ;;
 esac
@@ -187,11 +206,39 @@ fi
 
 # Download runtime dependencies from dependencies.yml (optional enrichment) if present.
 if [[ "$download_runtime_deps" == "true" ]]; then
-  deps_out="$(${SCRIPT_DIR}/download-runtime-deps.sh \
-    --project-root "$project_root" \
-    --loader "$loader_type" \
-    --minecraft-version "$minecraft_version" \
-    --dest-dir "$mod_dir" || true)"
+  deps_file_rel="dependencies.yml"
+
+  if [[ "$runtime_deps_mode" == "none" ]]; then
+    deps_out="dependencies_present=false\ndownloaded_count=0"
+  else
+    if [[ "$runtime_deps_mode" == "metadata-min" || "$runtime_deps_mode" == "metadata-max" ]]; then
+      policy="${runtime_deps_mode#metadata-}"
+
+      deps_file_rel=".mc_universal_workflow.runtime-deps.generated.yml"
+      rm -f "${project_root%/}/${deps_file_rel}" || true
+
+      if ! command -v python3 >/dev/null 2>&1; then
+        echo "ERROR: python3 is required for runtime-deps-mode=${runtime_deps_mode}" >&2
+        exit 1
+      fi
+
+      python3 "${SCRIPT_DIR}/resolve-runtime-deps-from-metadata.py" \
+        --project-root "$project_root" \
+        --loader "$loader_type" \
+        --minecraft-version "$minecraft_version" \
+        --policy "$policy" \
+        --out "$deps_file_rel" \
+        --strict \
+        >/dev/null
+    fi
+
+    deps_out="$(${SCRIPT_DIR}/download-runtime-deps.sh \
+      --project-root "$project_root" \
+      --deps-file "$deps_file_rel" \
+      --loader "$loader_type" \
+      --minecraft-version "$minecraft_version" \
+      --dest-dir "$mod_dir" || true)"
+  fi
 
   deps_present="$(echo "$deps_out" | sed -n 's/^dependencies_present=//p' | head -n 1)"
   deps_downloaded="$(echo "$deps_out" | sed -n 's/^downloaded_count=//p' | head -n 1)"
@@ -206,6 +253,10 @@ if [[ "$download_runtime_deps" == "true" ]]; then
       exit 1
     fi
     dependencies_count=$((dependencies_count + deps_downloaded))
+  fi
+
+  if [[ "$runtime_deps_mode" == "metadata-min" || "$runtime_deps_mode" == "metadata-max" ]]; then
+    rm -f "${project_root%/}/${deps_file_rel}" || true
   fi
 fi
 

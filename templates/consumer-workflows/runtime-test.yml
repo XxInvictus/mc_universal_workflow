@@ -9,6 +9,12 @@ jobs:
       project-root: .
       gradle-args: build
 
+      # Optional: choose how runtime dependencies are sourced.
+      # runtime-deps-mode: dependencies-yml  # default
+      # runtime-deps-mode: metadata-min
+      # runtime-deps-mode: metadata-max
+      # runtime-deps-mode: none
+
       # Optional (same-run artifact handoff): download jars and skip Gradle build.
       # use-build-artifacts: true
       # artifact-name: build-artifacts

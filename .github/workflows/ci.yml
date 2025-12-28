@@ -278,7 +278,7 @@ jobs:
 
       - name: Run detect-project action
         id: detect
-        uses: ./.github/actions/detect-project
+        uses: XxInvictus/mc_universal_workflow/.github/actions/detect-project@main
         with:
           project-root: fixture
 
@@ -291,7 +291,7 @@ jobs:
 
       - name: Run resolve-artifact action (single-loader)
         id: resolve_single
-        uses: ./.github/actions/resolve-artifact
+        uses: XxInvictus/mc_universal_workflow/.github/actions/resolve-artifact@main
         with:
           project-root: fixture
 
@@ -303,13 +303,13 @@ jobs:
 
       - name: Run validate-artifacts action (single-loader)
         id: val_art
-        uses: ./.github/actions/validate-artifacts
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-artifacts@main
         with:
           project-root: fixture
 
       - name: Run validate-mappings action (single-loader)
         id: val_map
-        uses: ./.github/actions/validate-mappings
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-mappings@main
         with:
           project-root: fixture
 
@@ -371,7 +371,7 @@ jobs:
 
       - name: Run resolve-artifact action (multi-loader)
         id: resolve_multi
-        uses: ./.github/actions/resolve-artifact
+        uses: XxInvictus/mc_universal_workflow/.github/actions/resolve-artifact@main
         with:
           project-root: fixture-multi
           loader: forge
@@ -405,7 +405,7 @@ jobs:
 
       - name: Run validate-dependencies action
         id: deps
-        uses: ./.github/actions/validate-dependencies
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
         with:
           project-root: fixture
 
@@ -431,7 +431,7 @@ jobs:
 
       - name: Run validate-dependencies action (missing file)
         id: deps_missing
-        uses: ./.github/actions/validate-dependencies
+        uses: XxInvictus/mc_universal_workflow/.github/actions/validate-dependencies@main
         with:
           project-root: fixture-no-deps
 
@@ -443,7 +443,7 @@ jobs:
 
       - name: Run prepare-test-env action
         id: prep
-        uses: ./.github/actions/prepare-test-env
+        uses: XxInvictus/mc_universal_workflow/.github/actions/prepare-test-env@main
         with:
           project-root: fixture
 

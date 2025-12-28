@@ -138,6 +138,16 @@ Recommended repository variables (in the consumer repo):
 - `MODRINTH_PROJECT_ID` (used by `modrinth-id`)
 - `CURSEFORGE_PROJECT_ID` (used by `curseforge-id`)
 
+Changelog files (default required for publishing):
+
+- Default (`changelog-mode: required`): requires and validates Keep a Changelog format.
+  - [CHANGELOG.md](templates/CHANGELOG.md): full development/technical changelog template (Keep a Changelog 1.0.0).
+  - [RELEASE_CHANGELOG.md](templates/RELEASE_CHANGELOG.md): user-facing changelog template (also Keep a Changelog 1.0.0; used for the published changelog).
+  - Published release notes contain only the changes since the last published release tag (this can include multiple unreleased intermediate versions).
+- Optional (`changelog-mode: custom`): skips changelog validation and uses your own changelog file (set `changelog-path`).
+- By default, `custom` publishes an empty changelog unless you set `custom-changelog-behavior: full`.
+- Optional (`changelog-mode: generated`): skips changelog validation and, if the file at `changelog-path` is missing, generates a simple templated changelog for the release body.
+
 ### Runtime test (HeadlessMC)
 
 This uses `headlesshq/mc-runtime-test@4.1.0` under the hood and stages the built jar into `./run/mods`.
@@ -158,6 +168,12 @@ jobs:
       gradle-args: build
       cache-mc: github
       runs-on: self-hosted
+
+      # Optional: choose how runtime dependencies are sourced.
+      # runtime-deps-mode: dependencies-yml  # default
+      # runtime-deps-mode: metadata-min      # resolve from mod metadata ranges (min)
+      # runtime-deps-mode: metadata-max      # resolve from mod metadata ranges (max)
+      # runtime-deps-mode: none              # skip runtime dependency downloads
 
       # Optional (same-run artifact handoff): download jars and skip Gradle build.
       use-build-artifacts: false
