@@ -4,9 +4,27 @@ on:
   push:
     branches:
       - '*-multiloader'
+    paths-ignore:
+      - 'README*'
+      - 'LICENSE*'
+      - 'TEMPLATE_LICENSE.txt'
+      - 'CREDITS.txt'
+      - 'docs/**'
+      - '.gitignore'
+      - '.github/instructions/**'
+      - 'changelog.txt'
   pull_request:
     branches:
       - '*-multiloader'
+    paths-ignore:
+      - 'README*'
+      - 'LICENSE*'
+      - 'TEMPLATE_LICENSE.txt'
+      - 'CREDITS.txt'
+      - 'docs/**'
+      - '.gitignore'
+      - '.github/instructions/**'
+      - 'changelog.txt'
   workflow_dispatch:
 
 jobs:
