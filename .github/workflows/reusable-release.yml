@@ -53,6 +53,21 @@ on:
         required: false
         type: string
         default: release
+      changelog-mode:
+        description: Changelog handling ('required' to validate and require RELEASE_CHANGELOG.md, 'custom' to skip validation but require a changelog file, 'generated' to skip validation and generate a simple changelog if missing)
+        required: false
+        type: string
+        default: required
+      changelog-path:
+        description: Path (relative to project-root) to the changelog file used for the published release body. Default is RELEASE_CHANGELOG.md.
+        required: false
+        type: string
+        default: RELEASE_CHANGELOG.md
+      custom-changelog-behavior:
+        description: When changelog-mode=custom, controls what gets published ('empty' publishes no changelog by default; 'full' publishes the entire file at changelog-path)
+        required: false
+        type: string
+        default: empty
     secrets:
       MODRINTH_TOKEN:
         description: Modrinth API token
@@ -276,6 +291,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Checkout mc_universal_workflow scripts (sparse)
+        uses: actions/checkout@v4
+        with:
+          repository: XxInvictus/mc_universal_workflow
+          ref: main
+          path: .mc_universal_workflow
+          sparse-checkout: |
+            scripts
+
       - name: Validate publishing inputs
         shell: bash
         run: |
@@ -303,11 +330,33 @@ jobs:
             fi
           fi
 
+      - name: Validate changelog files (optional)
+        if: ${{ inputs.changelog-mode == 'required' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_root="${{ inputs.project-root }}"
+          bash ./.mc_universal_workflow/scripts/validate-changelogs.sh --project-root "${project_root}"
+
       - name: Download built artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
           path: dist
+
+      - name: Find previous release tag (same Minecraft version)
+        id: prev_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          bash ./.mc_universal_workflow/scripts/find-previous-release-tag.sh \
+            --repo "${{ github.repository }}" \
+            --minecraft-version "${{ needs.build.outputs.minecraft_version }}" \
+            --current-mod-version "${{ needs.build.outputs.mod_version }}" \
+            >> "$GITHUB_OUTPUT"
 
       - name: Prepare changelog file
         id: changelog
@@ -319,52 +368,107 @@ jobs:
           release_tag="${{ needs.build.outputs.release_tag }}"
           out_file="${RUNNER_TEMP}/mc_universal_release_changelog.md"
 
-          if [[ -f "${project_root%/}/RELEASE_CHANGELOG.md" ]]; then
-            cp "${project_root%/}/RELEASE_CHANGELOG.md" "$out_file"
-          elif [[ -f "${project_root%/}/CHANGELOG.md" ]]; then
-            cp "${project_root%/}/CHANGELOG.md" "$out_file"
-          else
-            printf 'Automated release: %s\n' "$release_tag" > "$out_file"
-          fi
+          changelog_mode="${{ inputs.changelog-mode }}"
+          changelog_relpath="${{ inputs.changelog-path }}"
+          changelog_src="${project_root%/}/${changelog_relpath}"
+          custom_behavior="${{ inputs.custom-changelog-behavior }}"
+
+          case "$changelog_mode" in
+            required)
+              # Validation step already ran; here we still enforce the standard filename unless overridden.
+              if [[ "$changelog_relpath" != "RELEASE_CHANGELOG.md" ]]; then
+                echo "ERROR: changelog-path must be RELEASE_CHANGELOG.md when changelog-mode=required" >&2
+                exit 1
+              fi
+              if [[ ! -f "$changelog_src" ]]; then
+                echo "ERROR: RELEASE_CHANGELOG.md is required for releases (see templates/RELEASE_CHANGELOG.md)" >&2
+                exit 1
+              fi
+              prev_mod_version="${{ steps.prev_release.outputs.previous_mod_version }}"
+              if [[ -n "$prev_mod_version" ]]; then
+                bash ./.mc_universal_workflow/scripts/extract-release-notes.sh \
+                  --changelog-file "$changelog_src" \
+                  --current-version "${{ needs.build.outputs.mod_version }}" \
+                  --previous-version "$prev_mod_version" \
+                  > "$out_file"
+              else
+                bash ./.mc_universal_workflow/scripts/extract-release-notes.sh \
+                  --changelog-file "$changelog_src" \
+                  --current-version "${{ needs.build.outputs.mod_version }}" \
+                  > "$out_file"
+              fi
+              ;;
+            custom)
+              # Skip validation. By default, publish an empty changelog unless explicitly told to publish the full file.
+              case "$custom_behavior" in
+                empty)
+                  : > "$out_file"
+                  ;;
+                full)
+                  if [[ -z "$changelog_relpath" ]]; then
+                    echo "ERROR: changelog-path is required when changelog-mode=custom and custom-changelog-behavior=full" >&2
+                    exit 1
+                  fi
+                  if [[ ! -f "$changelog_src" ]]; then
+                    echo "ERROR: changelog file not found at '${changelog_relpath}' (relative to project-root)" >&2
+                    exit 1
+                  fi
+                  cp "$changelog_src" "$out_file"
+                  ;;
+                *)
+                  echo "ERROR: invalid custom-changelog-behavior '${custom_behavior}' (expected: empty|full)" >&2
+                  exit 1
+                  ;;
+              esac
+              ;;
+            generated)
+              # Prefer a user-provided file if it exists; otherwise generate a minimal template.
+              if [[ -n "$changelog_relpath" && -f "$changelog_src" ]]; then
+                cp "$changelog_src" "$out_file"
+              else
+                minecraft_version="${{ needs.build.outputs.minecraft_version }}"
+                mod_id="${{ needs.build.outputs.mod_id }}"
+                loaders="${{ needs.build.outputs.loaders_multiline }}"
+                created_date="$(date -u +%F)"
+
+                {
+                  echo "# ${mod_id} ${release_tag}"
+                  echo
+                  echo "Generated changelog (no changelog file provided)."
+                  echo
+                  echo "## Release"
+                  echo "- Version: ${release_tag}"
+                  echo "- Minecraft: ${minecraft_version}"
+                  echo "- Date: ${created_date}"
+                  echo
+                  echo "## Loaders"
+                  printf '%s\n' "${loaders}" | sed '/^$/d' | sed 's/^/- /'
+                } > "$out_file"
+              fi
+              ;;
+            *)
+              echo "ERROR: invalid changelog-mode '${changelog_mode}' (expected: required|custom|generated)" >&2
+              exit 1
+              ;;
+          esac
 
           echo "file=${out_file}" >> "$GITHUB_OUTPUT"
 
       - name: Ensure tag exists (idempotent)
         if: ${{ inputs.publish-github || inputs.publish-modrinth || inputs.publish-curseforge }}
-        uses: actions/github-script@v7
+        shell: bash
         env:
-          RELEASE_TAG: ${{ needs.build.outputs.release_tag }}
-          RELEASE_SHA: ${{ github.sha }}
-        with:
-          script: |
-            const tag = process.env.RELEASE_TAG;
-            const sha = process.env.RELEASE_SHA;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-
-            const ref = `tags/${tag}`;
-            try {
-              const existing = await github.rest.git.getRef({ owner, repo, ref });
-              const existingSha = existing.data.object.sha;
-              if (existingSha !== sha) {
-                core.setFailed(`Tag '${tag}' already exists but points to ${existingSha}, expected ${sha}`);
-                return;
-              }
-              core.info(`Tag '${tag}' already exists at ${sha}`);
-            } catch (err) {
-              if (err.status !== 404) throw err;
-              await github.rest.git.createRef({
-                owner,
-                repo,
-                ref: `refs/tags/${tag}`,
-                sha,
-              });
-              core.info(`Created tag '${tag}' at ${sha}`);
-            }
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash ./.mc_universal_workflow/scripts/ensure-tag-exists.sh \
+            --repo "${{ github.repository }}" \
+            --tag "${{ needs.build.outputs.release_tag }}" \
+            --sha "${{ github.sha }}"
 
       - name: Publish (GitHub Releases + optional Modrinth/CurseForge)
         if: ${{ inputs.publish-github }}
-        uses: Kir-Antipov/mc-publish@v3
+        uses: Kir-Antipov/mc-publish@v3.3
         with:
           github-token: ${{ github.token }}
           github-tag: ${{ needs.build.outputs.release_tag }}
@@ -391,7 +495,7 @@ jobs:
 
       - name: Publish (Modrinth/CurseForge only)
         if: ${{ !inputs.publish-github && (inputs.publish-modrinth || inputs.publish-curseforge) }}
-        uses: Kir-Antipov/mc-publish@v3
+        uses: Kir-Antipov/mc-publish@v3.3
         with:
           files: |
             dist/${{ needs.build.outputs.artifact_paths }}
