@@ -1,40 +1,57 @@
-# gradle
+## All Branch Shared
 
-.gradle/
-build/
-out/
-classes/
+# Build Docs
+build_docs/
+
+# macos
+*.DS_Store
+
+
+## Modloader Branch Shared
 
 # eclipse
-
+eclipse
+bin
 *.launch
+.settings
+.metadata
+.classpath
+.project
 
 # idea
-
-.idea/
-*.iml
+out
 *.ipr
 *.iws
+*.iml
+.idea/*
+!.idea/scopes
 
 # vscode
-
 .settings/
 .vscode/
 bin/
 .classpath
 .project
 
-# macos
-
-*.DS_Store
-
-# fabric
-
-run/
+# gradle
+.gradle/
+build/
+out/
+classes/
 
 # java
-
 hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# other
+run
+runs
+run-data
+
+
+## Forge Branch Shared
+
+# Files from Forge MDK
+forge*changelog.txt
