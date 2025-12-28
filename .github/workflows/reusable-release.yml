@@ -461,8 +461,33 @@ jobs:
             --tag "${{ needs.build.outputs.release_tag }}" \
             --sha "${{ github.sha }}"
 
-      - name: Publish (GitHub Releases + optional Modrinth/CurseForge)
-        if: ${{ inputs.publish-github }}
+      - name: Publish (GitHub Releases only)
+        if: ${{ inputs.publish-github && !inputs.publish-modrinth && !inputs.publish-curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        env:
+          # Defensive: prevent mc-publish from picking up provider tokens via env.
+          MODRINTH_TOKEN: ''
+          CURSEFORGE_TOKEN: ''
+        with:
+          github-token: ${{ github.token }}
+          github-tag: ${{ needs.build.outputs.release_tag }}
+          github-commitish: ${{ github.sha }}
+
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+      - name: Publish (GitHub Releases + Modrinth)
+        if: ${{ inputs.publish-github && inputs.publish-modrinth && !inputs.publish-curseforge }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           github-token: ${{ github.token }}
@@ -482,14 +507,62 @@ jobs:
           game-versions: |
             ${{ needs.build.outputs.minecraft_version }}
 
-          modrinth-id: ${{ inputs.publish-modrinth && inputs.modrinth-id || '' }}
-          modrinth-token: ${{ inputs.publish-modrinth && secrets.MODRINTH_TOKEN || '' }}
+          modrinth-id: ${{ inputs.modrinth-id }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-          curseforge-id: ${{ inputs.publish-curseforge && inputs.curseforge-id || '' }}
-          curseforge-token: ${{ inputs.publish-curseforge && secrets.CURSEFORGE_TOKEN || '' }}
+      - name: Publish (GitHub Releases + CurseForge)
+        if: ${{ inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          github-token: ${{ github.token }}
+          github-tag: ${{ needs.build.outputs.release_tag }}
+          github-commitish: ${{ github.sha }}
 
-      - name: Publish (Modrinth/CurseForge only)
-        if: ${{ !inputs.publish-github && (inputs.publish-modrinth || inputs.publish-curseforge) }}
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          curseforge-id: ${{ inputs.curseforge-id }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Publish (GitHub Releases + Modrinth + CurseForge)
+        if: ${{ inputs.publish-github && inputs.publish-modrinth && inputs.publish-curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          github-token: ${{ github.token }}
+          github-tag: ${{ needs.build.outputs.release_tag }}
+          github-commitish: ${{ github.sha }}
+
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          modrinth-id: ${{ inputs.modrinth-id }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          curseforge-id: ${{ inputs.curseforge-id }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Publish (Modrinth only)
+        if: ${{ !inputs.publish-github && inputs.publish-modrinth && !inputs.publish-curseforge }}
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           files: |
@@ -505,8 +578,48 @@ jobs:
           game-versions: |
             ${{ needs.build.outputs.minecraft_version }}
 
-          modrinth-id: ${{ inputs.publish-modrinth && inputs.modrinth-id || '' }}
-          modrinth-token: ${{ inputs.publish-modrinth && secrets.MODRINTH_TOKEN || '' }}
+          modrinth-id: ${{ inputs.modrinth-id }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
 
-          curseforge-id: ${{ inputs.publish-curseforge && inputs.curseforge-id || '' }}
-          curseforge-token: ${{ inputs.publish-curseforge && secrets.CURSEFORGE_TOKEN || '' }}
+      - name: Publish (CurseForge only)
+        if: ${{ !inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          curseforge-id: ${{ inputs.curseforge-id }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+
+      - name: Publish (Modrinth + CurseForge only)
+        if: ${{ !inputs.publish-github && inputs.publish-modrinth && inputs.publish-curseforge }}
+        uses: Kir-Antipov/mc-publish@v3.3
+        with:
+          files: |
+            dist/${{ needs.build.outputs.artifact_paths }}
+
+          name: ${{ needs.build.outputs.mod_id }} ${{ needs.build.outputs.release_tag }}
+          version: ${{ needs.build.outputs.release_tag }}
+          version-type: ${{ inputs.version-type }}
+          changelog-file: ${{ steps.changelog.outputs.file }}
+
+          loaders: |
+            ${{ needs.build.outputs.loaders_multiline }}
+          game-versions: |
+            ${{ needs.build.outputs.minecraft_version }}
+
+          modrinth-id: ${{ inputs.modrinth-id }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+
+          curseforge-id: ${{ inputs.curseforge-id }}
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
