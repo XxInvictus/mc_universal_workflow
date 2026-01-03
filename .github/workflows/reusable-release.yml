@@ -38,6 +38,11 @@ on:
         required: false
         type: boolean
         default: false
+      modrinth-unfeature-mode:
+        description: Modrinth unfeature behavior for previous releases (none, any, ...) depending on mc-publish support
+        required: false
+        type: string
+        default: none
       publish-curseforge:
         description: Publish to CurseForge (requires `curseforge-id` + `CURSEFORGE_TOKEN`)
         required: false
@@ -516,6 +521,7 @@ jobs:
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-featured: ${{ inputs['modrinth-featured'] }}
+          modrinth-unfeature-mode: ${{ inputs['modrinth-unfeature-mode'] }}
 
       - name: Publish (GitHub Releases + CurseForge)
         if: ${{ inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
@@ -565,6 +571,7 @@ jobs:
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-featured: ${{ inputs['modrinth-featured'] }}
+          modrinth-unfeature-mode: ${{ inputs['modrinth-unfeature-mode'] }}
 
           curseforge-id: ${{ inputs.curseforge-id }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
@@ -589,6 +596,7 @@ jobs:
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-featured: ${{ inputs['modrinth-featured'] }}
+          modrinth-unfeature-mode: ${{ inputs['modrinth-unfeature-mode'] }}
 
       - name: Publish (CurseForge only)
         if: ${{ !inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
@@ -630,6 +638,7 @@ jobs:
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           modrinth-featured: ${{ inputs['modrinth-featured'] }}
+          modrinth-unfeature-mode: ${{ inputs['modrinth-unfeature-mode'] }}
 
           curseforge-id: ${{ inputs.curseforge-id }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
