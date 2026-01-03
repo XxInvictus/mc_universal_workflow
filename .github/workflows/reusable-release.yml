@@ -33,6 +33,11 @@ on:
         required: false
         type: string
         default: ''
+      modrinth-featured:
+        description: Whether the Modrinth release should be featured
+        required: false
+        type: boolean
+        default: false
       publish-curseforge:
         description: Publish to CurseForge (requires `curseforge-id` + `CURSEFORGE_TOKEN`)
         required: false
@@ -459,7 +464,8 @@ jobs:
           bash ./.mc_universal_workflow/scripts/ensure-tag-exists.sh \
             --repo "${{ github.repository }}" \
             --tag "${{ needs.build.outputs.release_tag }}" \
-            --sha "${{ github.sha }}"
+            --sha "${{ github.sha }}" \
+            --mode move
 
       - name: Publish (GitHub Releases only)
         if: ${{ inputs.publish-github && !inputs.publish-modrinth && !inputs.publish-curseforge }}
@@ -509,6 +515,7 @@ jobs:
 
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: ${{ inputs['modrinth-featured'] }}
 
       - name: Publish (GitHub Releases + CurseForge)
         if: ${{ inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
@@ -557,6 +564,7 @@ jobs:
 
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: ${{ inputs['modrinth-featured'] }}
 
           curseforge-id: ${{ inputs.curseforge-id }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
@@ -580,6 +588,7 @@ jobs:
 
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: ${{ inputs['modrinth-featured'] }}
 
       - name: Publish (CurseForge only)
         if: ${{ !inputs.publish-github && !inputs.publish-modrinth && inputs.publish-curseforge }}
@@ -620,6 +629,7 @@ jobs:
 
           modrinth-id: ${{ inputs.modrinth-id }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          modrinth-featured: ${{ inputs['modrinth-featured'] }}
 
           curseforge-id: ${{ inputs.curseforge-id }}
           curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}

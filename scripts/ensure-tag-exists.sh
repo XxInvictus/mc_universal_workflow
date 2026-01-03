@@ -4,7 +4,8 @@
 #
 # If the tag already exists:
 #   - succeeds if it points to the expected SHA
-#   - fails if it points elsewhere
+#   - fails if it points elsewhere (mode=strict)
+#   - updates it to the expected SHA (mode=move)
 # If the tag does not exist:
 #   - creates it pointing to the expected SHA
 #
@@ -26,6 +27,7 @@ Options:
   --repo <owner/repo>   GitHub repository (defaults to GITHUB_REPOSITORY)
   --tag <tag>           Tag name (e.g., 1.20.1-1.2.3)
   --sha <sha>           Commit SHA the tag must point to
+  --mode <mode>         Tag behavior when it already exists: strict|move (default: strict)
   -h, --help            Show this help
 
 Environment:
@@ -36,6 +38,7 @@ EOF
 repo="${GITHUB_REPOSITORY:-}"
 tag=""
 sha=""
+mode="strict"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -49,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --sha)
       sha="${2:-}"
+      shift 2
+      ;;
+    --mode)
+      mode="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -65,6 +72,11 @@ done
 [[ -n "$tag" ]] || fail "--tag is required"
 [[ -n "$sha" ]] || fail "--sha is required"
 
+case "$mode" in
+  strict|move) ;;
+  *) fail "--mode must be one of: strict|move" ;;
+esac
+
 command -v gh >/dev/null 2>&1 || fail "gh CLI is required but not found on PATH"
 [[ -n "${GH_TOKEN:-}" ]] || fail "GH_TOKEN is required for gh api authentication"
 
@@ -77,6 +89,13 @@ set -e
 
 if [[ $status -eq 0 ]]; then
   if [[ "$existing_sha" != "$sha" ]]; then
+    if [[ "$mode" == "move" ]]; then
+      gh api -X PATCH "$ref_path" \
+        -f "sha=${sha}" \
+        -f "force=true" >/dev/null
+      echo "Updated tag '${tag}' from ${existing_sha} to ${sha}" >&2
+      exit 0
+    fi
     fail "Tag '${tag}' already exists but points to ${existing_sha}, expected ${sha}"
   fi
   echo "Tag '${tag}' already exists at ${sha}" >&2
